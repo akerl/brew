@@ -82,7 +82,7 @@ describe Tap do
   end
 
   specify "::names" do
-    expect(described_class.names.sort).to eq(["homebrew/core", "homebrew/foo"])
+    expect(described_class.names.sort).to eq(["halyard/core", "homebrew/foo"])
   end
 
   specify "attributes" do
@@ -308,7 +308,7 @@ describe CoreTap do
   specify "attributes" do
     expect(subject.user).to eq("Homebrew")
     expect(subject.repo).to eq("core")
-    expect(subject.name).to eq("homebrew/core")
+    expect(subject.name).to eq("halyard/core")
     expect(subject.command_files).to eq([])
     expect(subject).to be_installed
     expect(subject).not_to be_pinned

@@ -144,7 +144,7 @@ describe Tab do
 
   specify "other attributes" do
     expect(subject.HEAD).to eq(TEST_SHA1)
-    expect(subject.tap.name).to eq("homebrew/core")
+    expect(subject.tap.name).to eq("halyard/core")
     expect(subject.time).to eq(time)
     expect(subject).not_to be_built_as_bottle
     expect(subject).to be_poured_from_bottle
@@ -154,7 +154,7 @@ describe Tab do
     it "parses a Tab from a file" do
       path = Pathname.new("#{TEST_FIXTURE_DIR}/receipt.json")
       tab = described_class.from_file(path)
-      source_path = "/usr/local/Library/Taps/homebrew/homebrew-core/Formula/foo.rb"
+      source_path = "/usr/local/Library/Taps/halyard/homebrew-core/Formula/foo.rb"
       runtime_dependencies = [{ "full_name" => "foo", "version" => "1.0" }]
       changed_files = %w[INSTALL_RECEIPT.json bin/foo]
 
@@ -166,7 +166,7 @@ describe Tab do
       expect(tab).to be_stable
       expect(tab).not_to be_devel
       expect(tab).not_to be_head
-      expect(tab.tap.name).to eq("homebrew/core")
+      expect(tab.tap.name).to eq("halyard/core")
       expect(tab.spec).to eq(:stable)
       expect(tab.time).to eq(Time.at(1_403_827_774).to_i)
       expect(tab.HEAD).to eq(TEST_SHA1)
@@ -190,7 +190,7 @@ describe Tab do
       expect(tab).to be_stable
       expect(tab).not_to be_devel
       expect(tab).not_to be_head
-      expect(tab.tap.name).to eq("homebrew/core")
+      expect(tab.tap.name).to eq("halyard/core")
       expect(tab.spec).to eq(:stable)
       expect(tab.time).to eq(Time.at(1_403_827_774).to_i)
       expect(tab.HEAD).to eq(TEST_SHA1)

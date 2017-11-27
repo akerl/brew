@@ -544,7 +544,7 @@ end
 class CoreTap < Tap
   def default_remote
     if OS.mac? || ENV["HOMEBREW_FORCE_HOMEBREW_ORG"]
-      "https://github.com/Homebrew/homebrew-core".freeze
+      "https://github.com/halyard/homebrew-core".freeze
     else
       "https://github.com/Linuxbrew/homebrew-core".freeze
     end

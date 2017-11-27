@@ -264,10 +264,10 @@ describe "globally-scoped helper methods" do
       expect {
         odeprecated(
           "method", "replacement",
-          caller: ["#{HOMEBREW_LIBRARY}/Taps/homebrew/homebrew-core/"],
+          caller: ["#{HOMEBREW_LIBRARY}/Taps/halyard/homebrew-core/"],
           disable: true
         )
-      }.to raise_error(MethodDeprecatedError, %r{method.*replacement.*homebrew/homebrew-core.*homebrew/core}m)
+      }.to raise_error(MethodDeprecatedError, %r{method.*replacement.*halyard/homebrew-core.*halyard/core}m)
     end
   end
 

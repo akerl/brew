@@ -70,7 +70,7 @@ describe Migrator do
       keg.mkpath
       tab = Tab.empty
       tab.tabfile = HOMEBREW_CELLAR/"oldname/0.1/INSTALL_RECEIPT.json"
-      tab.source["tap"] = "homebrew/core"
+      tab.source["tap"] = "halyard/core"
       tab.write
 
       expect {

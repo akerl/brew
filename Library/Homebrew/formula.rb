@@ -63,7 +63,7 @@ class Formula
   attr_reader :name
 
   # The path to the alias that was used to identify this {Formula}.
-  # e.g. `/usr/local/Library/Taps/homebrew/homebrew-core/Aliases/another-name-for-this-formula`
+  # e.g. `/usr/local/Library/Taps/halyard/homebrew-core/Aliases/another-name-for-this-formula`
   attr_reader :alias_path
 
   # The name of the alias that was used to identify this {Formula}.
@@ -81,7 +81,7 @@ class Formula
   attr_reader :full_alias_name
 
   # The full path to this {Formula}.
-  # e.g. `/usr/local/Library/Taps/homebrew/homebrew-core/Formula/this-formula.rb`
+  # e.g. `/usr/local/Library/Taps/halyard/homebrew-core/Formula/this-formula.rb`
   attr_reader :path
 
   # The {Tap} instance associated with this {Formula}.
@@ -2062,7 +2062,7 @@ class Formula
     #
     # If you maintain your own repository, you can add your own bottle links.
     # https://docs.brew.sh/Bottles.html
-    # You can ignore this block entirely if submitting to Homebrew/homebrew-core.
+    # You can ignore this block entirely if submitting to halyard/homebrew-core.
     # It'll be handled for you by the Brew Test Bot.
     #
     # <pre>bottle do

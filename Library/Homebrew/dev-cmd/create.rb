@@ -43,7 +43,7 @@ module Homebrew
     fc = FormulaCreator.new
     fc.name = name
     fc.version = version
-    fc.tap = Tap.fetch(tap || "homebrew/core")
+    fc.tap = Tap.fetch(tap || "halyard/core")
     raise TapUnavailableError, tap unless fc.tap.installed?
     fc.url = url
 
@@ -226,7 +226,7 @@ class FormulaCreator
       test do
         # `test do` will create, run in and delete a temporary directory.
         #
-        # This test will fail and we won't accept that! For Homebrew/homebrew-core
+        # This test will fail and we won't accept that! For halyard/homebrew-core
         # this will need to be a test that verifies the functionality of the
         # software. Run the test with `brew test #{name}`. Options passed
         # to `brew install` such as `--HEAD` also need to be provided to `brew test`.

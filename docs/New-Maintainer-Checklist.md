@@ -13,7 +13,7 @@ your contributions around $THEIR_CONTRIBUTIONS.
 We would like to invite you to have commit access. There are no obligations,
 but we'd appreciate your continuing help in keeping on top of contributions.
 The easiest way to do this is to watch the Homebrew/brew and
-Homebrew/homebrew-core repositories on GitHub to provide help and code review
+halyard/homebrew-core repositories on GitHub to provide help and code review
 and to pull suitable changes.
 
 A few requests:

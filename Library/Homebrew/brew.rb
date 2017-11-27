@@ -23,7 +23,7 @@ require "tap"
 
 if ARGV == %w[--version] || ARGV == %w[-v]
   puts "Homebrew #{HOMEBREW_VERSION}"
-  puts "Homebrew/homebrew-core #{CoreTap.instance.version_string}"
+  puts "halyard/homebrew-core #{CoreTap.instance.version_string}"
   exit 0
 end
 
@@ -145,7 +145,7 @@ rescue RuntimeError, SystemCallError => e
 rescue MethodDeprecatedError => e
   onoe e
   if e.issues_url
-    $stderr.puts "If reporting this issue please do so at (not Homebrew/brew or Homebrew/core):"
+    $stderr.puts "If reporting this issue please do so at (not Homebrew/brew or halyard/core):"
     $stderr.puts "  #{Formatter.url(e.issues_url)}"
   end
   exit 1

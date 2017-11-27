@@ -19,7 +19,7 @@ describe "brew search", :integration_test do
   end
 
   it "supports searching a fully-qualified name " do
-    expect { brew "search", "homebrew/homebrew-core/testball" }
+    expect { brew "search", "halyard/homebrew-core/testball" }
       .to output(/testball/).to_stdout
       .and not_to_output.to_stderr
       .and be_a_success

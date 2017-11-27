@@ -1,7 +1,7 @@
 # Interesting Taps & Forks
 
 A _tap_ is homebrew-speak for a Git repository containing extra formulae.
-Homebrew has the capability to add (and remove) multiple taps to your local installation with the `brew tap` and `brew untap` commands. Type `man brew` in your Terminal. The main repository [https://github.com/Homebrew/homebrew-core](https://github.com/Homebrew/homebrew-core), often called `homebrew/core`, is always built-in.
+Homebrew has the capability to add (and remove) multiple taps to your local installation with the `brew tap` and `brew untap` commands. Type `man brew` in your Terminal. The main repository [https://github.com/halyard/homebrew-core](https://github.com/halyard/homebrew-core), often called `halyard/core`, is always built-in.
 
 ## Main taps
 
@@ -9,7 +9,7 @@ Homebrew has the capability to add (and remove) multiple taps to your local inst
 
 *   [homebrew/science](https://github.com/Homebrew/homebrew-science): A collection of scientific libraries and tools.
 
-`brew search` looks in these taps as well as in [homebrew/core](https://github.com/Homebrew/homebrew-core) so don't worry about missing stuff.
+`brew search` looks in these taps as well as in [halyard/core](https://github.com/halyard/homebrew-core) so don't worry about missing stuff.
 
 You can be added as a maintainer for one of the Homebrew organization taps and aid the project! If you are interested please feel free to ask in an issue or pull request after submitting multiple high-quality pull requests. We want your help!
 

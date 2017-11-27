@@ -1,7 +1,7 @@
 **Please note we will close your issue without comment if you delete, do not read or do not fill out the issue checklist below and provide ALL the requested information. If you repeatedly fail to use the issue template, we will block you from ever submitting issues to Homebrew again.**
 
 # Please always follow these steps:
-- [ ] Confirmed this is a problem with running a `brew` command and not `brew install`ing or the post-install behaviour of one or more formulae? If it's a formulae-specific problem please file this issue at the relevant tap e.g. for Homebrew/homebrew-core https://github.com/Homebrew/homebrew-core/issues/new
+- [ ] Confirmed this is a problem with running a `brew` command and not `brew install`ing or the post-install behaviour of one or more formulae? If it's a formulae-specific problem please file this issue at the relevant tap e.g. for halyard/homebrew-core https://github.com/halyard/homebrew-core/issues/new
 - [ ] Ran `brew update` and retried your prior step?
 - [ ] Ran `brew doctor`, fixed all issues and retried your prior step?
 - [ ] Ran `brew config` and `brew doctor` and included their output with your issue?

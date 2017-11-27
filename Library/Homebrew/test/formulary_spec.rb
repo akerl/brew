@@ -54,7 +54,7 @@ describe Formulary do
     end
 
     it "returns a Formula when given a fully qualified name" do
-      expect(subject.factory("homebrew/core/#{formula_name}")).to be_kind_of(Formula)
+      expect(subject.factory("halyard/core/#{formula_name}")).to be_kind_of(Formula)
     end
 
     it "raises an error if the Formula cannot be found" do
@@ -212,7 +212,7 @@ describe Formulary do
     it "returns the path to a Formula in the core tap" do
       name = "foo-bar"
       expect(subject.core_path(name))
-        .to eq(Pathname.new("#{HOMEBREW_LIBRARY}/Taps/homebrew/homebrew-core/Formula/#{name}.rb"))
+        .to eq(Pathname.new("#{HOMEBREW_LIBRARY}/Taps/halyard/homebrew-core/Formula/#{name}.rb"))
     end
   end
 end

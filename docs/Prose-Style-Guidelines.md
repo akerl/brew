@@ -59,7 +59,7 @@ We prefer:
 * Capitalized proper nouns
 * We do not defer to extensive nonstandard capitalization, typesetting, or other styling of brand names, aside from the normal capitalization of proper nouns and simple internal capitalization
 * No "TM", &trade;, <sup>SM</sup>, &copy;, &reg;, or other explicit indicators of rights ownership or trademarks; we take these as understood when the brand name is mentioned
-* Tap names like `homebrew/core` are styled in `fixed width font`. Repository names may be styled in either fixed width font like "`Homebrew/homebrew-core`", as links like "[Homebrew/homebrew-core](https://github.com/homebrew/homebrew-core)", or regular text like "Homebrew/homebrew-core", based on which looks best for a given use.
+* Tap names like `halyard/core` are styled in `fixed width font`. Repository names may be styled in either fixed width font like "`halyard/homebrew-core`", as links like "[halyard/homebrew-core](https://github.com/halyard/homebrew-core)", or regular text like "halyard/homebrew-core", based on which looks best for a given use.
   * But be consistent within a single document
   * Capitalize repository names to match the user and repository names on GitHub. Keep tap names in lower case.
 * Commas

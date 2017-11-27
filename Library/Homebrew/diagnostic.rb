@@ -770,9 +770,9 @@ module Homebrew
 
             Without a correctly configured origin, Homebrew won't update
             properly. You can solve this by adding the Homebrew remote:
-              git -C "#{coretap_path}" remote add origin #{Formatter.url("https://github.com/Homebrew/homebrew-core.git")}
+              git -C "#{coretap_path}" remote add origin #{Formatter.url("https://github.com/halyard/homebrew-core.git")}
           EOS
-        elsif origin !~ %r{Homebrew/homebrew-core(\.git|/)?$}
+        elsif origin !~ %r{halyard/homebrew-core(\.git|/)?$}
           return if ENV["CI"] && origin.include?("Homebrew/homebrew-test-bot")
 
           <<~EOS
@@ -784,7 +784,7 @@ module Homebrew
 
             Unless you have compelling reasons, consider setting the
             origin remote to point at the main repository by running:
-              git -C "#{coretap_path}" remote set-url origin #{Formatter.url("https://github.com/Homebrew/homebrew-core.git")}
+              git -C "#{coretap_path}" remote set-url origin #{Formatter.url("https://github.com/halyard/homebrew-core.git")}
           EOS
         end
 
@@ -794,10 +794,10 @@ module Homebrew
         return if branch.nil? || branch =~ /master/
 
         <<~EOS
-          Homebrew/homebrew-core is not on the master branch
+          halyard/homebrew-core is not on the master branch
 
           Check out the master branch by running:
-            git -C "$(brew --repo homebrew/core)" checkout master
+            git -C "$(brew --repo halyard/core)" checkout master
         EOS
       end
 

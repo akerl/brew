@@ -114,7 +114,7 @@ Or:
 
 Or:
 
-    brew pull https://github.com/Homebrew/homebrew-core/pull/1234
+    brew pull https://github.com/halyard/homebrew-core/pull/1234
 
 ## Why does Homebrew prefer I install to `/usr/local`?
 
@@ -169,7 +169,7 @@ If it’s not in `man brew`, it’s probably an external command. These are docu
 If it’s been a while, bump it with a “bump” comment. Sometimes we miss requests and there are plenty of them. Maybe we were thinking on something. It will encourage consideration. In the meantime if you could rebase the pull request so that it can be cherry-picked more easily we will love you for a long time.
 
 ## Can I edit formulae myself?
-Yes! It’s easy! Just `brew edit <formula>`. You don’t have to submit modifications back to `homebrew/core`, just edit the formula as you personally need it and `brew install`. As a bonus `brew update` will merge your changes with upstream so you can still keep the formula up-to-date **with** your personal modifications!
+Yes! It’s easy! Just `brew edit <formula>`. You don’t have to submit modifications back to `halyard/core`, just edit the formula as you personally need it and `brew install`. As a bonus `brew update` will merge your changes with upstream so you can still keep the formula up-to-date **with** your personal modifications!
 
 ## Can I make new formulae?
 Yes! It’s easy! Just `brew create URL`. Homebrew will then open the formula in
@@ -178,7 +178,7 @@ install <formula>`. If you encounter any issues, run the command with the
 `--debug` switch like so: `brew install --debug <formula>`, which drops you
 into a debugging shell.
 
-If you want your new formula to be part of `homebrew/core` or want
+If you want your new formula to be part of `halyard/core` or want
 to learn more about writing formulae, then please read the [Formula Cookbook](Formula-Cookbook.md).
 
 ## Can I install my own stuff to `/usr/local`?

@@ -34,7 +34,7 @@ Please report security issues to our [HackerOne](https://hackerone.com/homebrew/
 ## Who Are You?
 Homebrew's lead maintainer is [Mike McQuaid](https://github.com/mikemcquaid).
 
-Homebrew/homebrew-core's lead maintainer is [ilovezfs](https://github.com/ilovezfs).
+halyard/homebrew-core's lead maintainer is [ilovezfs](https://github.com/ilovezfs).
 
 Homebrew's other current maintainers are [Alyssa Ross](https://github.com/alyssais), [Andrew Janke](https://github.com/apjanke), [Alex Dunn](https://github.com/dunn), [FX Coudert](https://github.com/fxcoudert), [Josh Hagins](https://github.com/jawshooah), [JCount](https://github.com/jcount), [Misty De Meo](https://github.com/mistydemeo), [neutric](https://github.com/neutric), [Tomasz Pajor](https://github.com/nijikon), [Markus Reiter](https://github.com/reitermarkus), [Tim Smith](https://github.com/tdsmith), [Tom Schoonjans](https://github.com/tschoonj), [Uladzislau Shablinski](https://github.com/vladshablinsky) and [William Woodruff](https://github.com/woodruffw).
 

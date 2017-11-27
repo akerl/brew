@@ -158,7 +158,7 @@ module RuboCop
           [:mac?, :linux?].each do |method_name|
             next unless formula_tap == "homebrew-core"
             find_instance_method_call(body_node, "OS", method_name) do |check|
-              problem "Don't use #{check.source}; Homebrew/core only supports macOS"
+              problem "Don't use #{check.source}; halyard/core only supports macOS"
             end
           end
 

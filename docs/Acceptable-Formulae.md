@@ -1,14 +1,14 @@
 # Acceptable Formulae
 
 Some formulae should not go in
-[homebrew/core](https://github.com/Homebrew/homebrew-core). But there are
+[halyard/core](https://github.com/halyard/homebrew-core). But there are
 additional [Interesting Taps and Forks](Interesting-Taps-and-Forks.md) and anyone can start their
 own!
 
-### Dupes in `homebrew/core`
+### Dupes in `halyard/core`
 We now accept stuff that comes with macOS as long as it uses `keg_only :provided_by_macos` to be keg-only by default.
 
-### Versioned formulae in `homebrew/core`
+### Versioned formulae in `halyard/core`
 We now accept versioned formulae as long as they [meet the requirements](Versions.md).
 
 ### We don’t like tools that upgrade themselves
@@ -25,7 +25,7 @@ point it to the downloaded archive in order to avoid loading.
 
 ### We don’t like binary formulae
 Our policy is that formulae in the core tap
-([homebrew/core](https://github.com/Homebrew/homebrew-core)) must be open-source
+([halyard/core](https://github.com/halyard/homebrew-core)) must be open-source
 and either built from source or produce cross-platform binaries (e.g. Java).
 Binary-only formulae should go to
 [Homebrew Cask](https://github.com/caskroom/homebrew-cask).

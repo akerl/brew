@@ -12,7 +12,7 @@ describe "brew readall", :integration_test do
       .and not_to_output.to_stdout
       .and not_to_output.to_stderr
 
-    expect { brew "readall", "homebrew/core" }
+    expect { brew "readall", "halyard/core" }
       .to be_a_success
       .and not_to_output.to_stdout
       .and not_to_output.to_stderr

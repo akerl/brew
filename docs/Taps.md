@@ -11,7 +11,7 @@ but the command isn't limited to any one location.
 
 ```sh
 $ brew tap
-homebrew/core
+halyard/core
 mistydemeo/tigerbrew
 dunn/emacs
 ```
@@ -56,10 +56,10 @@ dunn/emacs
 ## Formula duplicate names
 
 If your tap contains a formula that is also present in
-[`homebrew/core`](https://github.com/Homebrew/homebrew-core), that's fine,
+[`halyard/core`](https://github.com/halyard/homebrew-core), that's fine,
 but it means that you must install it explicitly by default.
 
-If you would like to prioritize a tap over `homebrew/core`, you can use
+If you would like to prioritize a tap over `halyard/core`, you can use
 `brew tap-pin username/repo` to pin the tap,
 and use `brew tap-unpin username/repo` to revert the pin.
 
@@ -77,16 +77,16 @@ For example, you can create a tap for an alternative `vim` formula. Without
 pinning it, the behaviour will be
 
 ```sh
-brew install vim                     # installs from homebrew/core
+brew install vim                     # installs from halyard/core
 brew install username/repo/vim       # installs from your custom repo
 ```
 
 However if you pin the tap with `brew tap-pin username/repo`, you will need to
-use `homebrew/core` to refer to the core formula.
+use `halyard/core` to refer to the core formula.
 
 ```sh
 brew install vim                     # installs from your custom repo
-brew install homebrew/core/vim       # installs from homebrew/core
+brew install halyard/core/vim       # installs from halyard/core
 ```
 
 Do note that pinned taps are prioritized only when the formula name is directly

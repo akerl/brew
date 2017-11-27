@@ -31,7 +31,7 @@ before_install:
       umask 022;
       git fetch --unshallow;
       export PATH="$PWD/bin:$PATH";
-      HOMEBREW_CORE_TAP_DIR="$(brew --repo "homebrew/core")";
+      HOMEBREW_CORE_TAP_DIR="$(brew --repo "halyard/core")";
       mkdir -p "$HOMEBREW_CORE_TAP_DIR";
       git clone --depth=1 https://github.com/Homebrew/homebrew-test-bot Library/Taps/homebrew/homebrew-test-bot;
       HOMEBREW_TEST_BOT_TAP_DIR="$(brew --repo "homebrew/test-bot")";

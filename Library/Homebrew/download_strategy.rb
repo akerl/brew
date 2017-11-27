@@ -844,7 +844,7 @@ class GitDownloadStrategy < VCSDownloadStrategy
     # operations once the affected Git resource is staged, i.e. recursively
     # copied to a new location. (This bug was introduced in Git 2.7.0 and fixed
     # in 2.8.3. Clones created with affected version remain broken.)
-    # See https://github.com/Homebrew/homebrew-core/pull/1520 for an example.
+    # See https://github.com/halyard/homebrew-core/pull/1520 for an example.
     submodule_dirs = Utils.popen_read(
       "git", "submodule", "--quiet", "foreach", "--recursive", "pwd"
     )

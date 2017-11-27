@@ -686,7 +686,7 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     bottle's URL instead of Homebrew's default.
 
     If `--force-core-tap` is passed, build a bottle even if `formula` is not
-    in homebrew/core or any installed taps.
+    in halyard/core or any installed taps.
 
   * `bottle` `--merge` [`--keep-old`] [`--write` [`--no-commit`]] `formulae`:
     Generate a bottle from a formula and print the new DSL merged into the
@@ -793,12 +793,12 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
 
     Each `patch-source` may be one of:
 
-      ~ The ID number of a PR (pull request) in the homebrew/core GitHub
+      ~ The ID number of a PR (pull request) in the halyard/core GitHub
         repository
 
       ~ The URL of a PR on GitHub, using either the web page or API URL
         formats. In this form, the PR may be on Homebrew/brew,
-        Homebrew/homebrew-core or any tap.
+        halyard/homebrew-core or any tap.
 
       ~ The URL of a commit on GitHub
 
@@ -930,13 +930,13 @@ can take several different forms:
 
   * The fully-qualified name of a tapped formula:
     Sometimes a formula from a tapped repository may conflict with one in
-    `homebrew/core`.
+    `halyard/core`.
     You can still access these formulae by using a special syntax, e.g.
     `homebrew/dupes/vim` or `homebrew/versions/node4`.
 
   * An arbitrary URL:
     Homebrew can install formulae via URL, e.g.
-    `https://raw.github.com/Homebrew/homebrew-core/master/Formula/git.rb`.
+    `https://raw.github.com/halyard/homebrew-core/master/Formula/git.rb`.
     The formula file will be cached for later use.
 
 ## ENVIRONMENT
@@ -1102,7 +1102,7 @@ Homebrew Documentation: <https://docs.brew.sh>
 
 Homebrew's lead maintainer is Mike McQuaid.
 
-Homebrew/homebrew-core's lead maintainer is ilovezfs.
+halyard/homebrew-core's lead maintainer is ilovezfs.
 
 Homebrew's other current maintainers are Alyssa Ross, Andrew Janke, Alex Dunn, FX Coudert, Josh Hagins, JCount, Misty De Meo, neutric, Tomasz Pajor, Markus Reiter, Tim Smith, Tom Schoonjans, Uladzislau Shablinski and William Woodruff.
 
@@ -1114,7 +1114,7 @@ See our issues on GitHub:
 
  * Homebrew/brew <https://github.com/Homebrew/brew/issues>
 
- * Homebrew/homebrew-core <https://github.com/Homebrew/homebrew-core/issues>
+ * halyard/homebrew-core <https://github.com/halyard/homebrew-core/issues>
 
 
 [SYNOPSIS]: #SYNOPSIS "SYNOPSIS"

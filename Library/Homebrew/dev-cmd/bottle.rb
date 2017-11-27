@@ -16,7 +16,7 @@
 #:    bottle's URL instead of Homebrew's default.
 #:
 #:    If `--force-core-tap` is passed, build a bottle even if <formula> is not
-#:    in homebrew/core or any installed taps.
+#:    in halyard/core or any installed taps.
 #:
 #:  * `bottle` `--merge` [`--keep-old`] [`--write` [`--no-commit`]] <formulae>:
 #:    Generate a bottle from a formula and print the new DSL merged into the

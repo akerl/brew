@@ -713,7 +713,7 @@ If \fB\-\-skip\-relocation\fR is passed, do not check if the bottle can be marke
 If \fB\-\-root\-url\fR is passed, use the specified \fIURL\fR as the root of the bottle\'s URL instead of Homebrew\'s default\.
 .
 .IP
-If \fB\-\-force\-core\-tap\fR is passed, build a bottle even if \fIformula\fR is not in homebrew/core or any installed taps\.
+If \fB\-\-force\-core\-tap\fR is passed, build a bottle even if \fIformula\fR is not in halyard/core or any installed taps\.
 .
 .TP
 \fBbottle\fR \fB\-\-merge\fR [\fB\-\-keep\-old\fR] [\fB\-\-write\fR [\fB\-\-no\-commit\fR]] \fIformulae\fR
@@ -820,7 +820,7 @@ Gets a patch from a GitHub commit or pull request and applies it to Homebrew\. O
 Each \fIpatch\-source\fR may be one of:
 .
 .IP
-~ The ID number of a PR (pull request) in the homebrew/core GitHub repository
+~ The ID number of a PR (pull request) in the halyard/core GitHub repository
 .
 .IP
 ~ The URL of a PR on GitHub, using either the web page or API URL formats\. In this form, the PR may be on Homebrew/brew, Homebrew/homebrew\-core or any tap\.
@@ -958,7 +958,7 @@ e\.g\. \fBgit\fR, \fBnode\fR, \fBwget\fR\.
 .
 .TP
 The fully\-qualified name of a tapped formula
-Sometimes a formula from a tapped repository may conflict with one in \fBhomebrew/core\fR\. You can still access these formulae by using a special syntax, e\.g\. \fBhomebrew/dupes/vim\fR or \fBhomebrew/versions/node4\fR\.
+Sometimes a formula from a tapped repository may conflict with one in \fBhalyard/core\fR\. You can still access these formulae by using a special syntax, e\.g\. \fBhomebrew/dupes/vim\fR or \fBhomebrew/versions/node4\fR\.
 .
 .TP
 An arbitrary URL

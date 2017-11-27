@@ -104,7 +104,7 @@ describe Utils do
         stub_const("HOMEBREW_SHIMS_PATH", HOMEBREW_PREFIX/"bin/shim")
       end
 
-      it "can't install brewed git if homebrew/core is unavailable" do
+      it "can't install brewed git if halyard/core is unavailable" do
         allow_any_instance_of(Pathname).to receive(:directory?).and_return(false)
         expect { described_class.ensure_git_installed! }.to raise_error("Git is unavailable")
       end

@@ -217,7 +217,7 @@ describe Formula do
     expect(f).not_to need_migration
 
     oldname_tab.tabfile.unlink
-    oldname_tab.source["tap"] = "homebrew/core"
+    oldname_tab.source["tap"] = "halyard/core"
     oldname_tab.write
 
     expect(f).to need_migration
@@ -1020,7 +1020,7 @@ describe Formula do
 
     example "greater same tap installed" do
       f.instance_variable_set(:@tap, CoreTap.instance)
-      setup_tab_for_prefix(greater_prefix, tap: "homebrew/core")
+      setup_tab_for_prefix(greater_prefix, tap: "halyard/core")
       expect(f.outdated_kegs).to be_empty
     end
 
@@ -1031,7 +1031,7 @@ describe Formula do
 
     example "outdated same tap installed" do
       f.instance_variable_set(:@tap, CoreTap.instance)
-      setup_tab_for_prefix(outdated_prefix, tap: "homebrew/core")
+      setup_tab_for_prefix(outdated_prefix, tap: "halyard/core")
       expect(f.outdated_kegs).not_to be_empty
     end
 
@@ -1108,7 +1108,7 @@ describe Formula do
 
     example "outdated same head installed" do
       f.instance_variable_set(:@tap, CoreTap.instance)
-      setup_tab_for_prefix(head_prefix, tap: "homebrew/core")
+      setup_tab_for_prefix(head_prefix, tap: "halyard/core")
       expect(f.outdated_kegs).to be_empty
     end
 
@@ -1120,12 +1120,12 @@ describe Formula do
 
     example "outdated mixed taps greater version installed" do
       f.instance_variable_set(:@tap, CoreTap.instance)
-      setup_tab_for_prefix(outdated_prefix, tap: "homebrew/core")
+      setup_tab_for_prefix(outdated_prefix, tap: "halyard/core")
       setup_tab_for_prefix(greater_prefix, tap: "user/repo")
 
       expect(f.outdated_kegs).to be_empty
 
-      setup_tab_for_prefix(greater_prefix, tap: "homebrew/core")
+      setup_tab_for_prefix(greater_prefix, tap: "halyard/core")
       reset_outdated_kegs
 
       expect(f.outdated_kegs).to be_empty
@@ -1137,7 +1137,7 @@ describe Formula do
       extra_outdated_prefix = HOMEBREW_CELLAR/f.name/"1.0"
 
       setup_tab_for_prefix(outdated_prefix)
-      setup_tab_for_prefix(extra_outdated_prefix, tap: "homebrew/core")
+      setup_tab_for_prefix(extra_outdated_prefix, tap: "halyard/core")
       reset_outdated_kegs
 
       expect(f.outdated_kegs).not_to be_empty
@@ -1150,7 +1150,7 @@ describe Formula do
 
     example "outdated same version tap installed" do
       f.instance_variable_set(:@tap, CoreTap.instance)
-      setup_tab_for_prefix(same_prefix, tap: "homebrew/core")
+      setup_tab_for_prefix(same_prefix, tap: "halyard/core")
 
       expect(f.outdated_kegs).to be_empty
 

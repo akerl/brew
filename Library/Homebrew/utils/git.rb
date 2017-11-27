@@ -47,7 +47,7 @@ module Utils
   def self.ensure_git_installed!
     return if git_available?
 
-    # we cannot install brewed git if homebrew/core is unavailable.
+    # we cannot install brewed git if halyard/core is unavailable.
     if CoreTap.instance.installed?
       begin
         oh1 "Installing git"

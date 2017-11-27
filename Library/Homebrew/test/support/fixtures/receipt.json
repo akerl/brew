@@ -16,7 +16,7 @@
   ],
   "time": 1403827774,
   "HEAD": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-  "alias_path": "/usr/local/Library/Taps/homebrew/homebrew-core/Aliases/test-formula",
+  "alias_path": "/usr/local/Library/Taps/halyard/homebrew-core/Aliases/test-formula",
   "stdlib": "libcxx",
   "compiler": "clang",
   "runtime_dependencies": [
@@ -26,8 +26,8 @@
     }
   ],
   "source": {
-      "path": "/usr/local/Library/Taps/homebrew/homebrew-core/Formula/foo.rb",
-      "tap": "homebrew/core",
+      "path": "/usr/local/Library/Taps/halyard/homebrew-core/Formula/foo.rb",
+      "tap": "halyard/core",
       "spec": "stable",
       "versions": {
         "stable": "2.14",
