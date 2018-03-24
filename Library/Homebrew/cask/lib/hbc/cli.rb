@@ -21,6 +21,7 @@ require "hbc/cli/reinstall"
 require "hbc/cli/search"
 require "hbc/cli/style"
 require "hbc/cli/uninstall"
+require "hbc/cli/upgrade"
 require "hbc/cli/--version"
 require "hbc/cli/zap"
 
@@ -48,19 +49,19 @@ module Hbc
 
     include Options
 
-    option "--appdir=PATH",               ->(value) { Hbc.appdir               = value }
-    option "--colorpickerdir=PATH",       ->(value) { Hbc.colorpickerdir       = value }
-    option "--prefpanedir=PATH",          ->(value) { Hbc.prefpanedir          = value }
-    option "--qlplugindir=PATH",          ->(value) { Hbc.qlplugindir          = value }
-    option "--dictionarydir=PATH",        ->(value) { Hbc.dictionarydir        = value }
-    option "--fontdir=PATH",              ->(value) { Hbc.fontdir              = value }
-    option "--servicedir=PATH",           ->(value) { Hbc.servicedir           = value }
-    option "--input_methoddir=PATH",      ->(value) { Hbc.input_methoddir      = value }
-    option "--internet_plugindir=PATH",   ->(value) { Hbc.internet_plugindir   = value }
-    option "--audio_unit_plugindir=PATH", ->(value) { Hbc.audio_unit_plugindir = value }
-    option "--vst_plugindir=PATH",        ->(value) { Hbc.vst_plugindir        = value }
-    option "--vst3_plugindir=PATH",       ->(value) { Hbc.vst3_plugindir       = value }
-    option "--screen_saverdir=PATH",      ->(value) { Hbc.screen_saverdir      = value }
+    option "--appdir=PATH",               ->(value) { Config.global.appdir               = value }
+    option "--colorpickerdir=PATH",       ->(value) { Config.global.colorpickerdir       = value }
+    option "--prefpanedir=PATH",          ->(value) { Config.global.prefpanedir          = value }
+    option "--qlplugindir=PATH",          ->(value) { Config.global.qlplugindir          = value }
+    option "--dictionarydir=PATH",        ->(value) { Config.global.dictionarydir        = value }
+    option "--fontdir=PATH",              ->(value) { Config.global.fontdir              = value }
+    option "--servicedir=PATH",           ->(value) { Config.global.servicedir           = value }
+    option "--input_methoddir=PATH",      ->(value) { Config.global.input_methoddir      = value }
+    option "--internet_plugindir=PATH",   ->(value) { Config.global.internet_plugindir   = value }
+    option "--audio_unit_plugindir=PATH", ->(value) { Config.global.audio_unit_plugindir = value }
+    option "--vst_plugindir=PATH",        ->(value) { Config.global.vst_plugindir        = value }
+    option "--vst3_plugindir=PATH",       ->(value) { Config.global.vst3_plugindir       = value }
+    option "--screen_saverdir=PATH",      ->(value) { Config.global.screen_saverdir      = value }
 
     option "--help", :help, false
 
@@ -95,7 +96,7 @@ module Hbc
       if command.respond_to?(:run)
         # usual case: built-in command verb
         command.run(*args)
-      elsif require?(which("brewcask-#{command}.rb"))
+      elsif require?(which("brewcask-#{command}.rb", ENV["HOMEBREW_PATH"]))
         # external command as Ruby library on PATH, Homebrew-style
       elsif command.to_s.include?("/") && require?(command.to_s)
         # external command as Ruby library with literal path, useful
@@ -112,9 +113,9 @@ module Hbc
           # other Ruby libraries must do everything via "require"
           klass.run(*args)
         end
-      elsif which("brewcask-#{command}")
+      elsif external_command = which("brewcask-#{command}", ENV["HOMEBREW_PATH"])
         # arbitrary external executable on PATH, Homebrew-style
-        exec "brewcask-#{command}", *ARGV[1..-1]
+        exec external_command, *ARGV[1..-1]
       elsif Pathname.new(command.to_s).executable? &&
             command.to_s.include?("/") &&
             !command.to_s.match(/\.rb$/)
@@ -228,6 +229,7 @@ module Hbc
         purpose
         usage
 
+        return if @command.nil?
         return if @command == "help" && @args.empty?
 
         raise ArgumentError, "help does not take arguments."

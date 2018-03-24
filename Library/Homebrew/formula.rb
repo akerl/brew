@@ -14,6 +14,7 @@ require "tap"
 require "keg"
 require "migrator"
 require "extend/ENV"
+require "language/python"
 
 # A formula provides instructions and metadata for Homebrew to install a piece
 # of software. Every Homebrew formula is a {Formula}.
@@ -27,7 +28,7 @@ require "extend/ENV"
 # @see SharedEnvExtension
 # @see FileUtils
 # @see Pathname
-# @see https://docs.brew.sh/Formula-Cookbook.html Formula Cookbook
+# @see https://docs.brew.sh/Formula-Cookbook Formula Cookbook
 # @see https://github.com/styleguide/ruby Ruby Style Guide
 #
 # <pre>class Wget < Formula
@@ -962,6 +963,7 @@ class Formula
       "TEMP" => HOMEBREW_TEMP,
       "TMP" => HOMEBREW_TEMP,
       "HOMEBREW_PATH" => nil,
+      "PATH" => ENV["HOMEBREW_PATH"],
     }
 
     with_env(new_env) do
@@ -1369,7 +1371,7 @@ class Formula
   def self.racks
     @racks ||= if HOMEBREW_CELLAR.directory?
       HOMEBREW_CELLAR.subdirs.reject do |rack|
-        rack.symlink? || rack.subdirs.empty?
+        rack.symlink? || rack.basename.to_s.start_with?(".") || rack.subdirs.empty?
       end
     else
       []
@@ -1485,15 +1487,10 @@ class Formula
   # Returns a list of Dependency objects that are required at runtime.
   # @private
   def runtime_dependencies
-    runtime_dependencies = recursive_dependencies do |_, dependency|
+    recursive_dependencies do |_, dependency|
       Dependency.prune if dependency.build?
       Dependency.prune if !dependency.required? && build.without?(dependency)
     end
-    runtime_requirement_deps = recursive_requirements do |_, requirement|
-      Requirement.prune if requirement.build?
-      Requirement.prune if !requirement.required? && build.without?(requirement)
-    end.map(&:to_dependency).compact
-    runtime_dependencies + runtime_requirement_deps
   end
 
   # Returns a list of formulae depended on by this formula that aren't
@@ -1520,6 +1517,8 @@ class Formula
 
   # @private
   def to_hash
+    dependencies = deps
+
     hsh = {
       "name" => name,
       "full_name" => full_name,
@@ -1529,21 +1528,21 @@ class Formula
       "aliases" => aliases,
       "versions" => {
         "stable" => stable&.version&.to_s,
-        "bottle" => bottle ? true : false,
+        "bottle" => !bottle.nil?,
         "devel" => devel&.version&.to_s,
         "head" => head&.version&.to_s,
       },
       "revision" => revision,
       "version_scheme" => version_scheme,
       "installed" => [],
-      "linked_keg" => (linked_version.to_s if linked_keg.exist?),
+      "linked_keg" => linked_version&.to_s,
       "pinned" => pinned?,
       "outdated" => outdated?,
       "keg_only" => keg_only?,
-      "dependencies" => deps.map(&:name).uniq,
-      "recommended_dependencies" => deps.select(&:recommended?).map(&:name).uniq,
-      "optional_dependencies" => deps.select(&:optional?).map(&:name).uniq,
-      "build_dependencies" => deps.select(&:build?).map(&:name).uniq,
+      "dependencies" => dependencies.map(&:name).uniq,
+      "recommended_dependencies" => dependencies.select(&:recommended?).map(&:name).uniq,
+      "optional_dependencies" => dependencies.select(&:optional?).map(&:name).uniq,
+      "build_dependencies" => dependencies.select(&:build?).map(&:name).uniq,
       "conflicts_with" => conflicts.map(&:name),
       "caveats" => caveats,
     }
@@ -1551,7 +1550,6 @@ class Formula
     hsh["requirements"] = requirements.map do |req|
       {
         "name" => req.name,
-        "default_formula" => req.default_formula,
         "cask" => req.cask,
         "download" => req.download,
       }
@@ -1573,7 +1571,7 @@ class Formula
         "root_url" => bottle_spec.root_url,
       }
       bottle_info["files"] = {}
-      bottle_spec.collector.keys.each do |os| # rubocop:disable Performance/HashEachMethods
+      bottle_spec.collector.keys.each do |os|
         checksum = bottle_spec.collector[os]
         bottle_info["files"][os] = {
           "url" => "#{bottle_spec.root_url}/#{Bottle::Filename.create(self, os, bottle_spec.rebuild)}",
@@ -1622,7 +1620,7 @@ class Formula
       TEMP: HOMEBREW_TEMP,
       TMP: HOMEBREW_TEMP,
       TERM: "dumb",
-      PATH: PATH.new(ENV["PATH"]).append(HOMEBREW_PREFIX/"bin"),
+      PATH: PATH.new(ENV["PATH"], HOMEBREW_PREFIX/"bin"),
       HOMEBREW_PATH: nil,
       _JAVA_OPTIONS: "#{ENV["_JAVA_OPTIONS"]} -Duser.home=#{HOMEBREW_CACHE}/java_cache",
     }
@@ -2061,8 +2059,8 @@ class Formula
     # and you haven't passed or previously used any options on this formula.
     #
     # If you maintain your own repository, you can add your own bottle links.
-    # https://docs.brew.sh/Bottles.html
-    # You can ignore this block entirely if submitting to halyard/homebrew-core.
+    # https://docs.brew.sh/Bottles
+    # You can ignore this block entirely if submitting to Homebrew/homebrew-core.
     # It'll be handled for you by the Brew Test Bot.
     #
     # <pre>bottle do
@@ -2193,32 +2191,24 @@ class Formula
     # <pre># If a dependency is only needed in certain cases:
     # depends_on "sqlite" if MacOS.version == :leopard
     # depends_on :xcode # If the formula really needs full Xcode.
-    # depends_on :tex # Homebrew does not provide a Tex Distribution.
-    # depends_on :fortran # Checks that `gfortran` is available or `FC` is set.
-    # depends_on :mpi => :cc # Needs MPI with `cc`
-    # depends_on :mpi => [:cc, :cxx, :optional] # Is optional. MPI with `cc` and `cxx`.
     # depends_on :macos => :lion # Needs at least OS X Lion (10.7).
-    # depends_on :apr # If a formula requires the CLT-provided apr library to exist.
     # depends_on :arch => :intel # If this formula only builds on Intel architecture.
     # depends_on :arch => :x86_64 # If this formula only builds on Intel x86 64-bit.
     # depends_on :arch => :ppc # Only builds on PowerPC?
     # depends_on :ld64 # Sometimes ld fails on `MacOS.version < :leopard`. Then use this.
-    # depends_on :x11 # X11/XQuartz components.
+    # depends_on :x11 => :optional # X11/XQuartz components.
     # depends_on :osxfuse # Permits the use of the upstream signed binary or our source package.
     # depends_on :tuntap # Does the same thing as above. This is vital for Yosemite and above.
-    # depends_on :mysql => :recommended</pre>
     # <pre># It is possible to only depend on something if
     # # `build.with?` or `build.without? "another_formula"`:
-    # depends_on :mysql # allows brewed or external mysql to be used
-    # depends_on :postgresql if build.without? "sqlite"
-    # depends_on :hg # Mercurial (external or brewed) is needed</pre>
+    # depends_on "postgresql" if build.without? "sqlite"
     #
-    # <pre># If any Python >= 2.7 < 3.x is okay (either from macOS or brewed):
-    # depends_on :python</pre>
-    # <pre># to depend on Python >= 2.7 but use system Python where possible
-    # depends_on :python if MacOS.version <= :snow_leopard</pre>
-    # <pre># Python 3.x if the `--with-python3` is given to `brew install example`
-    # depends_on :python3 => :optional</pre>
+    # <pre># Python 3.x if the `--with-python` is given to `brew install example`
+    # depends_on "python3" => :optional</pre>
+    # <pre># Python 2.7:
+    # depends_on "python@2"</pre>
+    # <pre># Python 2.7 but use system Python where possible
+    # depends_on "python@2" if MacOS.version <= :snow_leopard</pre>
     def depends_on(dep)
       specs.each { |spec| spec.depends_on(dep) }
     end

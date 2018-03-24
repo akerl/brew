@@ -9,13 +9,11 @@ require "build_environment"
 class Requirement
   include Dependable
 
-  attr_reader :tags, :name, :cask, :download, :default_formula
+  attr_reader :tags, :name, :cask, :download
 
   def initialize(tags = [])
-    @default_formula = self.class.default_formula
     @cask ||= self.class.cask
     @download ||= self.class.download
-    @formula = nil
     tags.each do |tag|
       next unless tag.is_a? Hash
       @cask ||= tag[:cask]
@@ -50,29 +48,20 @@ class Requirement
     s
   end
 
-  # Overriding #satisfied? is deprecated.
+  # Overriding #satisfied? is unsupported.
   # Pass a block or boolean to the satisfy DSL method instead.
   def satisfied?
-    result = self.class.satisfy.yielder { |p| instance_eval(&p) }
-    @satisfied_result = result
-    return false unless result
-
-    if parent = satisfied_result_parent
-      parent.to_s =~ %r{(#{Regexp.escape(HOMEBREW_CELLAR)}|#{Regexp.escape(HOMEBREW_PREFIX)}/opt)/([\w+-.@]+)}
-      @formula = Regexp.last_match(2)
-    end
-
+    satisfy = self.class.satisfy
+    return true unless satisfy
+    @satisfied_result = satisfy.yielder { |p| instance_eval(&p) }
+    return false unless @satisfied_result
     true
   end
 
-  # Overriding #fatal? is deprecated.
+  # Overriding #fatal? is unsupported.
   # Pass a boolean to the fatal DSL method instead.
   def fatal?
     self.class.fatal || false
-  end
-
-  def default_formula?
-    self.class.default_formula || false
   end
 
   def satisfied_result_parent
@@ -84,11 +73,10 @@ class Requirement
     parent
   end
 
-  # Overriding #modify_build_environment is deprecated.
+  # Overriding #modify_build_environment is unsupported.
   # Pass a block to the env DSL method instead.
-  # Note: #satisfied? should be called before invoking this method
-  # as the env modifications may depend on its side effects.
   def modify_build_environment
+    satisfied?
     instance_eval(&env_proc) if env_proc
 
     # XXX If the satisfy block returns a Pathname, then make sure that it
@@ -124,24 +112,6 @@ class Requirement
     "#<#{self.class.name}: #{name.inspect} #{tags.inspect}>"
   end
 
-  def formula
-    @formula || self.class.default_formula
-  end
-
-  def satisfied_by_formula?
-    !@formula.nil?
-  end
-
-  def to_dependency(use_default_formula: false)
-    if use_default_formula && default_formula?
-      Dependency.new(self.class.default_formula, tags, method(:modify_build_environment), name)
-    elsif formula =~ HOMEBREW_TAP_FORMULA_REGEX
-      TapDependency.new(formula, tags, method(:modify_build_environment), name)
-    elsif formula
-      Dependency.new(formula, tags, method(:modify_build_environment), name)
-    end
-  end
-
   def display_s
     name
   end
@@ -167,11 +137,16 @@ class Requirement
     include BuildEnvironment::DSL
 
     attr_reader :env_proc, :build
-    attr_rw :fatal, :default_formula
-    attr_rw :cask, :download
+    attr_rw :fatal, :cask, :download
 
-    def satisfy(options = {}, &block)
-      @satisfied ||= Requirement::Satisfier.new(options, &block)
+    def default_formula(_val = nil)
+      odeprecated "Requirement.default_formula"
+    end
+
+    def satisfy(options = nil, &block)
+      return @satisfied if options.nil? && !block_given?
+      options = {} if options.nil?
+      @satisfied = Requirement::Satisfier.new(options, &block)
     end
 
     def env(*settings, &block)

@@ -1,4 +1,4 @@
-#:  * `audit` [`--strict`] [`--fix`] [`--online`] [`--new-formula`] [`--display-cop-names`] [`--display-filename`] [`--only=`<method>|`--except=`<method>] [`--only-cops=`[COP1,COP2..]|`--except-cops=`[COP1,COP2..]] [<formulae>]:
+#:  * `audit` [`--strict`] [`--fix`] [`--online`] [`--new-formula`] [`--display-cop-names`] [`--display-filename`] [`--only=`<method>|`--except=`<method>] [`--only-cops=`<cops>|`--except-cops=`<cops>] [<formulae>]:
 #:    Check <formulae> for Homebrew coding style violations. This should be
 #:    run before submitting a new formula.
 #:
@@ -8,7 +8,7 @@
 #:    style checks.
 #:
 #:    If `--fix` is passed, style violations will be
-#:    automatically fixed using RuboCop's `--auto-correct` feature.
+#:    automatically fixed using RuboCop's auto-correct feature.
 #:
 #:    If `--online` is passed, additional slower checks that require a network
 #:    connection are run.
@@ -23,23 +23,24 @@
 #:    If `--display-filename` is passed, every line of output is prefixed with the
 #:    name of the file or formula being audited, to make the output easy to grep.
 #:
-#:    If `--only` is passed, only the methods named `audit_<method>` will be run.
+#:    Passing `--only=`<method> will run only the methods named `audit_<method>`,
+#:    while `--except=`<method> will skip the methods named `audit_<method>`.
+#:    For either option <method> should be a comma-separated list.
 #:
-#:    If `--except` is passed, the methods named `audit_<method>` will not be run.
-#:
-#:    If `--only-cops` is passed, only the given Rubocop cop(s)' violations would be checked.
-#:
-#:    If `--except-cops` is passed, the given Rubocop cop(s)' checks would be skipped.
+#:    Passing `--only-cops=`<cops> will check for violations of only the listed
+#:    RuboCop <cops>, while `--except-cops=`<cops> will skip checking the listed
+#:    <cops>. For either option <cops> should be a comma-separated list of cop names.
 #:
 #:    `audit` exits with a non-zero status if any errors are found. This is useful,
 #:    for instance, for implementing pre-commit hooks.
 
 # Undocumented options:
-#     -D activates debugging and profiling of the audit methods (not the same as --debug)
+#     `-D` activates debugging and profiling of the audit methods (not the same as `--debug`)
 
 require "formula"
 require "formula_versions"
 require "utils"
+require "utils/curl"
 require "extend/ENV"
 require "formula_cellar_checks"
 require "official_taps"
@@ -48,20 +49,34 @@ require "cmd/style"
 require "date"
 require "missing_formula"
 require "digest"
+require "cli_parser"
 
 module Homebrew
   module_function
 
   def audit
-    inject_dump_stats!(FormulaAuditor, /^audit_/) if ARGV.switch? "D"
+    args = Homebrew::CLI::Parser.new do
+      switch      "--strict"
+      switch      "--online"
+      switch      "--new-formula"
+      switch      "--fix"
+      switch      "--display-cop-names"
+      switch      "--display-filename"
+      switch      "-D", "--audit-debug", description: "Activates debugging and profiling"
+      comma_array "--only"
+      comma_array "--except"
+      comma_array "--only-cops"
+      comma_array "--except-cops"
+    end.parse
+
     Homebrew.auditing = true
+    inject_dump_stats!(FormulaAuditor, /^audit_/) if args.audit_debug?
 
     formula_count = 0
     problem_count = 0
-
-    new_formula = ARGV.include? "--new-formula"
-    strict = new_formula || ARGV.include?("--strict")
-    online = new_formula || ARGV.include?("--online")
+    new_formula = args.new_formula?
+    strict = new_formula || args.strict?
+    online = new_formula || args.online?
 
     ENV.activate_extensions!
     ENV.setup_build_environment
@@ -74,35 +89,36 @@ module Homebrew
       files = ARGV.resolved_formulae.map(&:path)
     end
 
-    only_cops = ARGV.value("only-cops").to_s.split(",")
-    except_cops = ARGV.value("except-cops").to_s.split(",")
+    only_cops = args.only_cops
+    except_cops = args.except_cops
 
-    if !only_cops.empty? && !except_cops.empty?
+    if only_cops && except_cops
       odie "--only-cops and --except-cops cannot be used simultaneously!"
-    elsif (!only_cops.empty? || !except_cops.empty?) && (strict || ARGV.value("only"))
+    elsif (only_cops || except_cops) && (strict || args.only)
       odie "--only-cops/--except-cops and --strict/--only cannot be used simultaneously"
     end
 
-    options = { fix: ARGV.flag?("--fix"), realpath: true }
+    options = { fix: args.fix?, realpath: true }
 
-    if !only_cops.empty?
+    if only_cops
       options[:only_cops] = only_cops
-      ARGV.push("--only=style")
-    elsif new_formula
+      args.only = ["style"]
+    elsif args.new_formula?
       nil
     elsif strict
       options[:except_cops] = [:NewFormulaAudit]
-    elsif !except_cops.empty?
+    elsif except_cops
       options[:except_cops] = except_cops
     elsif !strict
       options[:only_cops] = [:FormulaAudit]
     end
 
+    options[:display_cop_names] = args.display_cop_names?
     # Check style in a single batch run up front for performance
     style_results = check_style_json(files, options)
 
-    ff.each do |f|
-      options = { new_formula: new_formula, strict: strict, online: online }
+    ff.sort.each do |f|
+      options = { new_formula: new_formula, strict: strict, online: online, only: args.only, except: args.except }
       options[:style_offenses] = style_results.file_offenses(f.path)
       fa = FormulaAuditor.new(f, options)
       fa.audit
@@ -112,7 +128,7 @@ module Homebrew
       formula_count += 1
       problem_count += fa.problems.size
       problem_lines = fa.problems.map { |p| "* #{p.chomp.gsub("\n", "\n    ")}" }
-      if ARGV.include? "--display-filename"
+      if args.display_filename?
         puts problem_lines.map { |s| "#{f.path}: #{s}" }
       else
         puts "#{f.full_name}:", problem_lines.map { |s| "  #{s}" }
@@ -171,134 +187,27 @@ class FormulaAuditor
 
   attr_reader :formula, :text, :problems
 
-  BUILD_TIME_DEPS = %w[
-    autoconf
-    automake
-    boost-build
-    bsdmake
-    cmake
-    godep
-    imake
-    intltool
-    libtool
-    pkg-config
-    scons
-    smake
-    sphinx-doc
-    swig
-  ].freeze
-
-  FILEUTILS_METHODS = FileUtils.singleton_methods(false).map { |m| Regexp.escape(m) }.join "|"
-
   def initialize(formula, options = {})
     @formula = formula
     @new_formula = options[:new_formula]
     @strict = options[:strict]
     @online = options[:online]
+    @display_cop_names = options[:display_cop_names]
+    @only = options[:only]
+    @except = options[:except]
     # Accept precomputed style offense results, for efficiency
     @style_offenses = options[:style_offenses]
+    # Allow the actual official-ness of a formula to be overridden, for testing purposes
+    @official_tap = formula.tap&.official? || options[:official_tap]
     @problems = []
     @text = FormulaText.new(formula.path)
     @specs = %w[stable devel head].map { |s| formula.send(s) }.compact
   end
 
-  def self.check_http_content(url, user_agents: [:default], check_content: false, strict: false, require_http: false)
-    return unless url.start_with? "http"
-
-    details = nil
-    user_agent = nil
-    hash_needed = url.start_with?("http:") && !require_http
-    user_agents.each do |ua|
-      details = http_content_headers_and_checksum(url, hash_needed: hash_needed, user_agent: ua)
-      user_agent = ua
-      break if details[:status].to_s.start_with?("2")
-    end
-
-    unless details[:status]
-      # Hack around https://github.com/Homebrew/brew/issues/3199
-      return if MacOS.version == :el_capitan
-      return "The URL #{url} is not reachable"
-    end
-
-    unless details[:status].start_with? "2"
-      return "The URL #{url} is not reachable (HTTP status code #{details[:status]})"
-    end
-
-    return unless hash_needed
-
-    secure_url = url.sub "http", "https"
-    secure_details =
-      http_content_headers_and_checksum(secure_url, hash_needed: true, user_agent: user_agent)
-
-    if !details[:status].to_s.start_with?("2") ||
-       !secure_details[:status].to_s.start_with?("2")
-      return
-    end
-
-    etag_match = details[:etag] &&
-                 details[:etag] == secure_details[:etag]
-    content_length_match =
-      details[:content_length] &&
-      details[:content_length] == secure_details[:content_length]
-    file_match = details[:file_hash] == secure_details[:file_hash]
-
-    if etag_match || content_length_match || file_match
-      return "The URL #{url} should use HTTPS rather than HTTP"
-    end
-
-    return unless check_content
-
-    no_protocol_file_contents = %r{https?:\\?/\\?/}
-    details[:file] = details[:file].gsub(no_protocol_file_contents, "/")
-    secure_details[:file] = secure_details[:file].gsub(no_protocol_file_contents, "/")
-
-    # Check for the same content after removing all protocols
-    if details[:file] == secure_details[:file]
-      return "The URL #{url} should use HTTPS rather than HTTP"
-    end
-
-    return unless strict
-
-    # Same size, different content after normalization
-    # (typical causes: Generated ID, Timestamp, Unix time)
-    if details[:file].length == secure_details[:file].length
-      return "The URL #{url} may be able to use HTTPS rather than HTTP. Please verify it in a browser."
-    end
-
-    lenratio = (100 * secure_details[:file].length / details[:file].length).to_i
-    return unless (90..110).cover?(lenratio)
-    "The URL #{url} may be able to use HTTPS rather than HTTP. Please verify it in a browser."
-  end
-
-  def self.http_content_headers_and_checksum(url, hash_needed: false, user_agent: :default)
-    max_time = hash_needed ? "600" : "25"
-    output, = curl_output(
-      "--connect-timeout", "15", "--include", "--max-time", max_time, "--location", url,
-      user_agent: user_agent
-    )
-
-    status_code = :unknown
-    while status_code == :unknown || status_code.to_s.start_with?("3")
-      headers, _, output = output.partition("\r\n\r\n")
-      status_code = headers[%r{HTTP\/.* (\d+)}, 1]
-    end
-
-    output_hash = Digest::SHA256.digest(output) if hash_needed
-
-    {
-      status: status_code,
-      etag: headers[%r{ETag: ([wW]\/)?"(([^"]|\\")*)"}, 2],
-      content_length: headers[/Content-Length: (\d+)/, 1],
-      file_hash: output_hash,
-      file: output,
-    }
-  end
-
   def audit_style
     return unless @style_offenses
-    display_cop_names = ARGV.include?("--display-cop-names")
     @style_offenses.each do |offense|
-      problem offense.to_s(display_cop_name: display_cop_names)
+      problem offense.to_s(display_cop_name: @display_cop_names)
     end
   end
 
@@ -395,7 +304,7 @@ class FormulaAuditor
   def audit_formula_name
     return unless @strict
     # skip for non-official taps
-    return if formula.tap.nil? || !formula.tap.official?
+    return unless @official_tap
 
     name = formula.name
 
@@ -468,36 +377,12 @@ class FormulaAuditor
           problem "Dependency #{dep} does not define option #{opt.name.inspect}"
         end
 
-        case dep.name
-        when "git"
-          problem "Don't use git as a dependency"
-        when "mercurial"
-          problem "Use `depends_on :hg` instead of `depends_on 'mercurial'`"
-        when "gfortran"
-          problem "Use `depends_on :fortran` instead of `depends_on 'gfortran'`"
-        when "ruby"
-          problem <<~EOS
-            Don't use "ruby" as a dependency. If this formula requires a
-            minimum Ruby version not provided by the system you should
-            use the RubyRequirement:
-              depends_on :ruby => "1.8"
-            where "1.8" is the minimum version of Ruby required.
-          EOS
-        when "open-mpi", "mpich"
-          problem <<~EOS
-            There are multiple conflicting ways to install MPI. Use an MPIRequirement:
-              depends_on :mpi => [<lang list>]
-            Where <lang list> is a comma delimited list that can include:
-              :cc, :cxx, :f77, :f90
-            EOS
-        when *BUILD_TIME_DEPS
-          next if dep.build? || dep.run?
-          problem <<~EOS
-            #{dep} dependency should be
-              depends_on "#{dep}" => :build
-            Or if it is indeed a runtime dependency
-              depends_on "#{dep}" => :run
-          EOS
+        if dep.name == "git"
+          problem "Don't use git as a dependency (it's always available)"
+        end
+
+        if dep.tags.include?(:run)
+          problem "Dependency '#{dep.name}' is marked as :run. Remove :run; it is a no-op."
         end
       end
     end
@@ -558,10 +443,10 @@ class FormulaAuditor
     return unless @online
 
     return unless DevelopmentTools.curl_handles_most_https_certificates?
-    if http_content_problem = FormulaAuditor.check_http_content(homepage,
-                                               user_agents: [:browser, :default],
-                                               check_content: true,
-                                               strict: @strict)
+    if http_content_problem = curl_check_http_content(homepage,
+                                user_agents: [:browser, :default],
+                                check_content: true,
+                                strict: @strict)
       problem http_content_problem
     end
   end
@@ -828,7 +713,13 @@ class FormulaAuditor
 
     return unless @strict
 
-    problem "`#{Regexp.last_match(1)}` in formulae is deprecated" if line =~ /(env :(std|userpaths))/
+    if @official_tap && line.include?("env :std")
+      problem "`env :std` in official tap formulae is deprecated"
+    end
+
+    if line.include?("env :userpaths")
+      problem "`env :userpaths` in formulae is deprecated"
+    end
 
     if line =~ /system ((["'])[^"' ]*(?:\s[^"' ]*)+\2)/
       bad_system = Regexp.last_match(1)
@@ -851,7 +742,7 @@ class FormulaAuditor
   def audit_reverse_migration
     # Only enforce for new formula being re-added to core and official taps
     return unless @strict
-    return unless formula.tap&.official?
+    return unless @official_tap
     return unless formula.tap.tap_migrations.key?(formula.name)
 
     problem <<~EOS
@@ -872,6 +763,18 @@ class FormulaAuditor
     EOS
   end
 
+  def audit_url_is_not_binary
+    return unless @official_tap
+
+    urls = @specs.map(&:url)
+
+    urls.each do |url|
+      if url =~ /darwin/i && (url =~ /x86_64/i || url =~ /amd64/i)
+        problem "#{url} looks like a binary package, not a source archive. Official taps are source-only."
+      end
+    end
+  end
+
   def quote_dep(dep)
     dep.is_a?(Symbol) ? dep.inspect : "'#{dep}'"
   end
@@ -881,17 +784,17 @@ class FormulaAuditor
   end
 
   def audit
-    only_audits = ARGV.value("only").to_s.split(",")
-    except_audits = ARGV.value("except").to_s.split(",")
-    if !only_audits.empty? && !except_audits.empty?
+    only_audits = @only
+    except_audits = @except
+    if only_audits && except_audits
       odie "--only and --except cannot be used simultaneously!"
     end
 
     methods.map(&:to_s).grep(/^audit_/).each do |audit_method_name|
       name = audit_method_name.gsub(/^audit_/, "")
-      if !only_audits.empty?
+      if only_audits
         next unless only_audits.include?(name)
-      elsif !except_audits.empty?
+      elsif except_audits
         next if except_audits.include?(name)
       end
       send(audit_method_name)
@@ -1037,17 +940,17 @@ class ResourceAuditor
         # A `brew mirror`'ed URL is usually not yet reachable at the time of
         # pull request.
         next if url =~ %r{^https://dl.bintray.com/homebrew/mirror/}
-        if http_content_problem = FormulaAuditor.check_http_content(url, require_http: curl_openssl_or_deps)
+        if http_content_problem = curl_check_http_content(url, require_http: curl_openssl_or_deps)
           problem http_content_problem
         end
       elsif strategy <= GitDownloadStrategy
-        unless Utils.git_remote_exists url
+        unless Utils.git_remote_exists? url
           problem "The URL #{url} is not a valid git URL"
         end
       elsif strategy <= SubversionDownloadStrategy
         next unless DevelopmentTools.subversion_handles_most_https_certificates?
         next unless Utils.svn_available?
-        unless Utils.svn_remote_exists url
+        unless Utils.svn_remote_exists? url
           problem "The URL #{url} is not a valid svn URL"
         end
       end

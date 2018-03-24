@@ -3,13 +3,13 @@ require "erb"
 module Utils
   module Analytics
     class << self
-      def clear_anonymous_os_prefix_ci_cache
-        return unless instance_variable_defined?(:@anonymous_os_prefix_ci)
-        remove_instance_variable(:@anonymous_os_prefix_ci)
+      def clear_os_prefix_ci
+        return unless instance_variable_defined?(:@os_prefix_ci)
+        remove_instance_variable(:@os_prefix_ci)
       end
 
       def os_prefix_ci
-        @anonymous_os_prefix_ci ||= begin
+        @os_prefix_ci ||= begin
           os = OS_VERSION
           prefix = ", non-/usr/local" if HOMEBREW_PREFIX.to_s != "/usr/local"
           ci = ", CI" if ENV["CI"]
@@ -40,7 +40,7 @@ module Utils
         end
 
         # Send analytics. Don't send or store any personally identifiable information.
-        # https://docs.brew.sh/Analytics.html
+        # https://docs.brew.sh/Analytics
         # https://developers.google.com/analytics/devguides/collection/protocol/v1/devguide
         # https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters
         if ENV["HOMEBREW_ANALYTICS_DEBUG"]

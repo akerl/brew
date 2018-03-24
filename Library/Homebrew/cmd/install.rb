@@ -1,4 +1,4 @@
-#:  * `install` [`--debug`] [`--env=`(`std`|`super`)] [`--ignore-dependencies`|`--only-dependencies`] [`--cc=`<compiler>] [`--build-from-source`|`--force-bottle`] [`--devel`|`--HEAD`] [`--keep-tmp`] [`--build-bottle`] <formula> [<options> ...]:
+#:  * `install` [`--debug`] [`--env=`(`std`|`super`)] [`--ignore-dependencies`|`--only-dependencies`] [`--cc=`<compiler>] [`--build-from-source`|`--force-bottle`] [`--include-test`] [`--devel`|`--HEAD`] [`--keep-tmp`] [`--build-bottle`] [`--force`] [`--verbose`] <formula> [<options> ...]:
 #:    Install <formula>.
 #:
 #:    <formula> is usually the name of the formula to install, but it can be specified
@@ -36,6 +36,9 @@
 #:    current or newest version of macOS, even if it would not normally be used
 #:    for installation.
 #:
+#:    If `--include-test` is passed, install testing dependencies. These are only
+#:    needed by formulae maintainers to run `brew test`.
+#:
 #:    If `--devel` is passed, and <formula> defines it, install the development version.
 #:
 #:    If `--HEAD` is passed, and <formula> defines it, install the HEAD version,
@@ -46,6 +49,11 @@
 #:
 #:    If `--build-bottle` is passed, prepare the formula for eventual bottling
 #:    during installation.
+#:
+#:    If `--force` (or `-f`) is passed, install without checking for previously
+#:    installed keg-only or non-migrated versions
+#:
+#:    If `--verbose` (or `-v`) is passed, print the verification and postinstall steps.
 #:
 #:    Installation options specific to <formula> may be appended to the command,
 #:    and can be listed with `brew options` <formula>.
@@ -154,6 +162,8 @@ module Homebrew
               #{f.full_name} #{optlinked_version} is already installed
               To upgrade to #{f.version}, run `brew upgrade #{f.name}`
             EOS
+          elsif ARGV.only_deps?
+            formulae << f
           else
             opoo <<~EOS
               #{f.full_name} #{f.pkg_version} is already installed
@@ -183,8 +193,11 @@ module Homebrew
               #{msg}, it's just not linked.
               You can use `brew link #{f}` to link this version.
             EOS
+          elsif ARGV.only_deps?
+            msg = nil
+            formulae << f
           end
-          opoo msg
+          opoo msg if msg
         elsif !f.any_version_installed? && old_formula = f.old_installed_formulae.first
           msg = "#{old_formula.full_name} #{old_formula.installed_version} already installed"
           if !old_formula.linked? && !old_formula.keg_only?
@@ -339,7 +352,7 @@ module Homebrew
   rescue FormulaInstallationAlreadyAttemptedError
     # We already attempted to install f as part of the dependency tree of
     # another formula. In that case, don't generate an error, just move on.
-    return
+    nil
   rescue CannotInstallFormulaError => e
     ofail e.message
   end

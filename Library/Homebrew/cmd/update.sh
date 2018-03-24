@@ -23,15 +23,8 @@ git() {
 }
 
 git_init_if_necessary() {
-  if [[ -n "$HOMEBREW_MACOS" ]] || [[ -n "$HOMEBREW_FORCE_HOMEBREW_ORG" ]]
-  then
-    BREW_OFFICIAL_REMOTE="https://github.com/Homebrew/brew"
-    CORE_OFFICIAL_REMOTE="https://github.com/halyard/homebrew-core"
-  elif [[ -n "$HOMEBREW_LINUX" ]]
-  then
-    BREW_OFFICIAL_REMOTE="https://github.com/Linuxbrew/brew"
-    CORE_OFFICIAL_REMOTE="https://github.com/Linuxbrew/homebrew-core"
-  fi
+  BREW_OFFICIAL_REMOTE="https://github.com/akerl/brew"
+  CORE_OFFICIAL_REMOTE="https://github.com/halyard/homebrew-core"
 
   safe_cd "$HOMEBREW_REPOSITORY"
   if [[ ! -d ".git" ]]
@@ -383,18 +376,21 @@ user account:
 EOS
   fi
 
-  if ! git --version >/dev/null 2>&1
+  # we may want to use a Homebrew curl
+  if [[ -n "$HOMEBREW_FORCE_BREWED_CURL" &&
+      ! -x "$HOMEBREW_PREFIX/opt/curl/bin/curl" ]]
   then
-    # we need a new enough curl to install git
-    if [[ -n "$HOMEBREW_SYSTEM_CURL_TOO_OLD" &&
-        ! -x "$HOMEBREW_PREFIX/opt/curl/bin/curl" ]]
-    then
-      brew install curl
-    fi
+    brew install curl
+  fi
+
+  if ! git --version &>/dev/null ||
+       [[ -n "$HOMEBREW_SYSTEM_GIT_TOO_OLD" &&
+        ! -x "$HOMEBREW_PREFIX/opt/git/bin/git" ]]
+  then
     # we cannot install brewed git if halyard/core is unavailable.
     [[ -d "$HOMEBREW_LIBRARY/Taps/halyard/homebrew-core" ]] && brew install git
     unset GIT_EXECUTABLE
-    if ! git --version >/dev/null 2>&1
+    if ! git --version &>/dev/null
     then
       odie "Git must be installed and in your PATH!"
     fi
@@ -408,9 +404,6 @@ EOS
   else
     QUIET_ARGS=()
   fi
-
-  # ensure GIT_CONFIG is unset as we need to operate on .git/config
-  unset GIT_CONFIG
 
   # only allow one instance of brew update
   lock update

@@ -80,6 +80,14 @@ module Homebrew
       odie "This command requires at least one argument containing a URL or pull request number"
     end
 
+    # Passthrough Git environment variables for e.g. git am
+    if ENV["HOMEBREW_GIT_NAME"]
+      ENV["GIT_COMMITTER_NAME"] = ENV["HOMEBREW_GIT_NAME"]
+    end
+    if ENV["HOMEBREW_GIT_EMAIL"]
+      ENV["GIT_COMMITTER_EMAIL"] = ENV["HOMEBREW_GIT_EMAIL"]
+    end
+
     do_bump = ARGV.include?("--bump") && !ARGV.include?("--clean")
 
     # Formulae with affected bottles that were published
@@ -439,7 +447,7 @@ module Homebrew
   def publish_bottle_file_on_bintray(f, bintray_org, creds)
     repo = Utils::Bottles::Bintray.repository(f.tap)
     package = Utils::Bottles::Bintray.package(f.name)
-    info = FormulaInfoFromJson.lookup(f.name)
+    info = FormulaInfoFromJson.lookup(f.full_name)
     if info.nil?
       raise "Failed publishing bottle: failed reading formula info for #{f.full_name}"
     end

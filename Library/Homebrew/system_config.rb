@@ -131,16 +131,10 @@ class SystemConfig
     end
 
     def describe_java
-      # java_home doesn't exist on all macOSs; it might be missing on older versions.
-      return "N/A" unless File.executable? "/usr/libexec/java_home"
-
-      java_xml = Utils.popen_read("/usr/libexec/java_home", "--xml", "--failfast", err: :close)
+      return "N/A" unless which "java"
+      java_version = Utils.popen_read("java", "-version")
       return "N/A" unless $CHILD_STATUS.success?
-      javas = []
-      REXML::XPath.each(REXML::Document.new(java_xml), "//key[text()='JVMVersion']/following-sibling::string") do |item|
-        javas << item.text
-      end
-      javas.uniq.join(", ")
+      java_version[/java version "([\d\._]+)"/, 1] || "N/A"
     end
 
     def describe_git
@@ -185,9 +179,11 @@ class SystemConfig
         HOMEBREW_BREW_FILE
         HOMEBREW_COMMAND_DEPTH
         HOMEBREW_CURL
+        HOMEBREW_GIT_CONFIG_FILE
         HOMEBREW_LIBRARY
         HOMEBREW_MACOS_VERSION
         HOMEBREW_RUBY_PATH
+        HOMEBREW_RUBY_WARNINGS
         HOMEBREW_SYSTEM
         HOMEBREW_OS_VERSION
         HOMEBREW_PATH
@@ -215,7 +211,17 @@ class SystemConfig
       f.puts "Homebrew Ruby: #{describe_homebrew_ruby}"
       f.puts "GCC-4.0: build #{gcc_4_0}" unless gcc_4_0.null?
       f.puts "GCC-4.2: build #{gcc_4_2}" unless gcc_4_2.null?
-      f.puts "Clang: #{clang.null? ? "N/A" : "#{clang} build #{clang_build}"}"
+      f.print "Clang: "
+      if clang.null?
+        f.puts "N/A"
+      else
+        f.print "#{clang} build "
+        if clang_build.null?
+          f.puts "(parse error)"
+        else
+          f.puts clang_build
+        end
+      end
       f.puts "Git: #{describe_git}"
       f.puts "Curl: #{describe_curl}"
       f.puts "Perl: #{describe_perl}"

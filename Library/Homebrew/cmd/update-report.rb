@@ -1,5 +1,5 @@
 #: @hide_from_man_page
-#:  * `update_report`:
+#:  * `update_report` [`--preinstall`]:
 #:    The Ruby implementation of `brew update`. Never called manually.
 
 require "formula_versions"
@@ -13,7 +13,7 @@ module Homebrew
   module_function
 
   def update_preinstall_header
-    @header_already_printed ||= begin
+    @update_preinstall_header ||= begin
       ohai "Auto-updated Homebrew!" if ARGV.include?("--preinstall")
       true
     end
@@ -35,7 +35,7 @@ module Homebrew
         ohai "Homebrew has enabled anonymous aggregate user behaviour analytics."
         puts <<~EOS
           #{Tty.bold}Read the analytics documentation (and how to opt-out) here:
-            #{Formatter.url("https://docs.brew.sh/Analytics.html")}#{Tty.reset}
+            #{Formatter.url("https://docs.brew.sh/Analytics")}#{Tty.reset}
 
         EOS
 

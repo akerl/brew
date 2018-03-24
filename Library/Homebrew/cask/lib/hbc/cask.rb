@@ -6,17 +6,18 @@ module Hbc
     extend Forwardable
     include Metadata
 
-    attr_reader :token, :sourcefile_path
+    attr_reader :token, :sourcefile_path, :config
 
     def tap
       return super if block_given? # Object#tap
       @tap
     end
 
-    def initialize(token, sourcefile_path: nil, tap: nil, &block)
+    def initialize(token, sourcefile_path: nil, tap: nil, config: Config.global, &block)
       @token = token
       @sourcefile_path = sourcefile_path
       @tap = tap
+      @config = config
       @dsl = DSL.new(self)
       return unless block_given?
       @dsl.instance_eval(&block)
@@ -24,7 +25,7 @@ module Hbc
     end
 
     DSL::DSL_METHODS.each do |method_name|
-      define_method(method_name) { @dsl.send(method_name) }
+      define_method(method_name) { |&block| @dsl.send(method_name, &block) }
     end
 
     def timestamped_versions

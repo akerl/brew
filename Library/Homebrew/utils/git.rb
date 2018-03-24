@@ -8,9 +8,10 @@ module Git
 
     out, = Open3.capture3(
       HOMEBREW_SHIMS_PATH/"scm/git", "-C", repo,
-      "log", "--oneline", "--max-count=1", *args, "--", file
+      "log", "--format=%h", "--abbrev=7", "--max-count=1",
+      *args, "--", file
     )
-    out.split(" ").first
+    out.chomp
   end
 
   def last_revision_of_file(repo, file, before_commit: nil)
@@ -27,7 +28,7 @@ end
 
 module Utils
   def self.git_available?
-    @git ||= quiet_system HOMEBREW_SHIMS_PATH/"scm/git", "--version"
+    @git_available ||= quiet_system HOMEBREW_SHIMS_PATH/"scm/git", "--version"
   end
 
   def self.git_path
@@ -50,7 +51,7 @@ module Utils
     # we cannot install brewed git if halyard/core is unavailable.
     if CoreTap.instance.installed?
       begin
-        oh1 "Installing git"
+        oh1 "Installing #{Formatter.identifier("git")}"
         safe_system HOMEBREW_BREW_FILE, "install", "git"
       rescue
         raise "Git is unavailable"
@@ -61,12 +62,12 @@ module Utils
   end
 
   def self.clear_git_available_cache
-    @git = nil
+    @git_available = nil
     @git_path = nil
     @git_version = nil
   end
 
-  def self.git_remote_exists(url)
+  def self.git_remote_exists?(url)
     return true unless git_available?
     quiet_system "git", "ls-remote", url
   end

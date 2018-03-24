@@ -12,7 +12,9 @@ describe Hbc::CLI::Uninstall, :cask do
 
     output = Regexp.new <<~EOS
       ==> Uninstalling Cask local-caffeine
+      ==> Backing App 'Caffeine.app' up to '.*Caffeine.app'.
       ==> Removing App '.*Caffeine.app'.
+      ==> Purging files for version 1.2.3 of Cask local-caffeine
     EOS
 
     expect {
@@ -49,9 +51,9 @@ describe Hbc::CLI::Uninstall, :cask do
     described_class.run("local-caffeine", "local-transmission")
 
     expect(caffeine).not_to be_installed
-    expect(Hbc.appdir.join("Transmission.app")).not_to exist
+    expect(Hbc::Config.global.appdir.join("Transmission.app")).not_to exist
     expect(transmission).not_to be_installed
-    expect(Hbc.appdir.join("Caffeine.app")).not_to exist
+    expect(Hbc::Config.global.appdir.join("Caffeine.app")).not_to exist
   end
 
   it "calls `uninstall` before removing artifacts" do
@@ -60,14 +62,14 @@ describe Hbc::CLI::Uninstall, :cask do
     Hbc::Installer.new(cask).install
 
     expect(cask).to be_installed
-    expect(Hbc.appdir.join("MyFancyApp.app")).to exist
+    expect(Hbc::Config.global.appdir.join("MyFancyApp.app")).to exist
 
     expect {
       described_class.run("with-uninstall-script-app")
     }.not_to raise_error
 
     expect(cask).not_to be_installed
-    expect(Hbc.appdir.join("MyFancyApp.app")).not_to exist
+    expect(Hbc::Config.global.appdir.join("MyFancyApp.app")).not_to exist
   end
 
   it "can uninstall Casks when the uninstall script is missing, but only when using `--force`" do
@@ -77,7 +79,7 @@ describe Hbc::CLI::Uninstall, :cask do
 
     expect(cask).to be_installed
 
-    Hbc.appdir.join("MyFancyApp.app").rmtree
+    Hbc::Config.global.appdir.join("MyFancyApp.app").rmtree
 
     expect { described_class.run("with-uninstall-script-app") }
     .to raise_error(Hbc::CaskError, /uninstall script .* does not exist/)
@@ -140,7 +142,7 @@ describe Hbc::CLI::Uninstall, :cask do
   end
 
   describe "when Casks in Taps have been renamed or removed" do
-    let(:app) { Hbc.appdir.join("ive-been-renamed.app") }
+    let(:app) { Hbc::Config.global.appdir.join("ive-been-renamed.app") }
     let(:caskroom_path) { Hbc.caskroom.join("ive-been-renamed").tap(&:mkpath) }
     let(:saved_caskfile) { caskroom_path.join(".metadata", "latest", "timestamp", "Casks").join("ive-been-renamed.rb") }
 

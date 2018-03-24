@@ -16,15 +16,15 @@ Applications should unconditionally bundle all of their Python-language dependen
 
 ### Python declarations
 
+Formulae for apps that require Python 3 **should** declare an unconditional dependency on `"python"`. These apps **must** work with the current Homebrew Python 3.x formula.
+
 Applications that are compatible with Python 2 **should** use the Apple-provided system Python in `/usr/bin` on systems that provide Python 2.7. To do this, declare:
 
 ```ruby
-depends_on :python if MacOS.version <= :snow_leopard
+depends_on "python@2" if MacOS.version <= :snow_leopard
 ```
 
-No explicit Python dependency is needed on recent OS versions since `/usr/bin` is always in `PATH` for Homebrew formulae; on Leopard and older, the python in `PATH` is used if it's at least version 2.7, or else Homebrew's python is installed.
-
-Formulae for apps that require Python 3 **should** declare an unconditional dependency on `:python3`, which will cause the formula to use the first python3 discovered in `PATH` at install time (or install Homebrew's if there isn't one). These apps **must** work with the current Homebrew python3 formula.
+No explicit Python dependency is needed on recent OS versions since `/usr/bin` is always in `PATH` for Homebrew formulae; on Leopard and older, the `python` in `PATH` is used if it's at least version 2.7, or else Homebrew's Python 2.7.x is installed.
 
 ### Installing
 
@@ -51,7 +51,7 @@ poet some_package
 deactivate
 ```
 
-Homebrew provides helper methods for instantiating and populating virtualenvs. You can use them by putting `include Language::Python::Virtualenv` on the `Formula` class definition, above `def install`.
+Homebrew provides helper methods for instantiating and populating virtualenvs. You can use them by putting `include Language::Python::Virtualenv` at the top of the `Formula` class definition.
 
 For most applications, all you will need to write is:
 
@@ -66,7 +66,7 @@ This is exactly the same as writing:
 ```ruby
 def install
   # Create a virtualenv in `libexec`. If your app needs Python 3, make sure that
-  # `depends_on :python3` is declared, and use `virtualenv_create(libexec, "python3")`.
+  # `depends_on "python"` is declared, and use `virtualenv_create(libexec, "python")`.
   venv = virtualenv_create(libexec)
   # Install all of the resources declared on the formula into the virtualenv.
   venv.pip_install resources
@@ -85,6 +85,8 @@ Installing a formula with dependencies will look like this:
 
 ```ruby
 class Foo < Formula
+  include Language::Python::Virtualenv
+
   url "..."
 
   resource "six" do
@@ -96,8 +98,6 @@ class Foo < Formula
     url "https://pypi.python.org/packages/source/p/parsedatetime/parsedatetime-1.4.tar.gz"
     sha256 "09bfcd8f3c239c75e77b3ff05d782ab2c1aed0892f250ce2adf948d4308fe9dc"
   end
-
-  include Language::Python::Virtualenv
 
   def install
     virtualenv_install_with_resources
@@ -121,9 +121,9 @@ in case you need to do different things for different resources.
 
 ## Bindings
 
-Build bindings with system Python by default (don't add an option) and they should be usable with any binary-compatible Python. If that isn't the case, it's an upstream bug; [here's some advice for resolving it](http://blog.tim-smith.us/2015/09/python-extension-modules-os-x/).
+To add bindings for Python 3, please add `depends_on "python"`.
 
-To add bindings for Python 3, please add `depends_on :python3 => :optional` and make the bindings conditional on `build.with?("python3")`.
+Build Python 2 bindings with the system Python by default (don't add an option) and they should be usable with any binary-compatible Python. If that isn't the case, it's an upstream bug; [here's some advice for resolving it](http://blog.tim-smith.us/2015/09/python-extension-modules-os-x/).
 
 ### Dependencies
 
@@ -153,7 +153,9 @@ Sometimes we have to `inreplace` a `Makefile` to use our prefix for the Python b
 
 ### Python declarations
 
-Python 2 libraries do not need a `depends_on :python` declaration; they will be built with system Python, but should still be usable with any other Python 2.7. If this is not the case, it is an upstream bug; [here is some advice for resolving it](http://blog.tim-smith.us/2015/09/python-extension-modules-os-x/). Libraries built for Python 3 should include `depends_on :python3`, which will bottle against Homebrew's python3, and use the first python3 discovered in `PATH` at build time when installing from source with `brew install --build-from-source`. If a library supports both Python 2.x and Python 3.x, the `:python3` dependency should be `:optional`. Python 2.x libraries must function when they are installed against either the system Python or Homebrew Python.
+Libraries built for Python 3 should include `depends_on "python"`, which will bottle against Homebrew's Python 3.x. Python 2.x libraries must function when they are installed against either the system Python or brewed Python.
+
+Python 2 libraries do not need a `depends_on "python@2"` declaration; they will be built with the system Python, but should still be usable with any other Python 2.7. If this is not the case, it is an upstream bug; [here is some advice for resolving it](http://blog.tim-smith.us/2015/09/python-extension-modules-os-x/).
 
 ### Installing
 
@@ -164,8 +166,6 @@ Most formulae presently just install to `prefix`.
 ### Dependencies
 
 The dependencies of libraries must be installed so that they are importable. To minimize the potential for linking conflicts, dependencies should be installed to `libexec/"vendor"` and added to `sys.path` by writing a second .pth file (named like "homebrew-foo-dependencies.pth") to the `prefix` site-packages.
-
-The [matplotlib](https://github.com/Homebrew/homebrew-science/blob/master/matplotlib.rb) formula in [homebrew/science](https://github.com/Homebrew/homebrew-science) deploys this strategy.
 
 ## Further down the rabbit hole
 

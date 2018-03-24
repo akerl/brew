@@ -19,14 +19,6 @@ case "$*" in
   --repository|--repo) echo "$HOMEBREW_REPOSITORY"; exit 0 ;;
 esac
 
-HOMEBREW_VERSION="$(git -C "$HOMEBREW_REPOSITORY" describe --tags --dirty --abbrev=7 2>/dev/null)"
-HOMEBREW_USER_AGENT_VERSION="$HOMEBREW_VERSION"
-if [[ -z "$HOMEBREW_VERSION" ]]
-then
-  HOMEBREW_VERSION=">1.2.0 (shallow or no git repository)"
-  HOMEBREW_USER_AGENT_VERSION="1.X.Y"
-fi
-
 # A depth of 1 means this command was directly invoked by a user.
 # Higher depths mean this command was invoked by another Homebrew command.
 export HOMEBREW_COMMAND_DEPTH=$((HOMEBREW_COMMAND_DEPTH + 1))
@@ -40,7 +32,7 @@ onoe() {
   fi
   if [[ $# -eq 0 ]]
   then
-    /bin/cat >&2
+    cat >&2
   else
     echo "$*" >&2
   fi
@@ -63,33 +55,19 @@ git() {
   "$HOMEBREW_LIBRARY/Homebrew/shims/scm/git" "$@"
 }
 
+HOMEBREW_VERSION="$(git -C "$HOMEBREW_REPOSITORY" describe --tags --dirty --abbrev=7 2>/dev/null)"
+HOMEBREW_USER_AGENT_VERSION="$HOMEBREW_VERSION"
+if [[ -z "$HOMEBREW_VERSION" ]]
+then
+  HOMEBREW_VERSION=">=1.4.0 (shallow or no git repository)"
+  HOMEBREW_USER_AGENT_VERSION="1.X.Y"
+fi
+
 if [[ "$HOMEBREW_PREFIX" = "/" || "$HOMEBREW_PREFIX" = "/usr" ]]
 then
   # it may work, but I only see pain this route and don't want to support it
   odie "Cowardly refusing to continue at this prefix: $HOMEBREW_PREFIX"
 fi
-
-# Save values to use for installing gems
-if [[ -n "$GEM_HOME" ]]
-then
-  export HOMEBREW_GEM_HOME="$GEM_HOME"
-fi
-if [[ -n "$GEM_PATH" ]]
-then
-  export HOMEBREW_GEM_PATH="$GEM_PATH"
-fi
-
-# Users may have these set, pointing the system Ruby
-# at non-system gem paths
-unset GEM_HOME
-unset GEM_PATH
-
-# Users may have this set, injecting arbitrary environment changes into
-# bash processes inside builds
-unset BASH_ENV
-
-# Users may have this set, breaking grep's output.
-unset GREP_OPTIONS
 
 HOMEBREW_SYSTEM="$(uname -s)"
 case "$HOMEBREW_SYSTEM" in
@@ -97,7 +75,6 @@ case "$HOMEBREW_SYSTEM" in
   Linux)  HOMEBREW_LINUX="1" ;;
 esac
 
-HOMEBREW_CURL="/usr/bin/curl"
 if [[ -n "$HOMEBREW_MACOS" ]]
 then
   HOMEBREW_PROCESSOR="$(uname -p)"
@@ -110,18 +87,21 @@ then
   # Don't change this from Mac OS X to match what macOS itself does in Safari on 10.12
   HOMEBREW_OS_USER_AGENT_VERSION="Mac OS X $HOMEBREW_MACOS_VERSION"
 
+  # The system Curl is too old for some modern HTTPS certificates on
+  # older macOS versions.
   printf -v HOMEBREW_MACOS_VERSION_NUMERIC "%02d%02d%02d" ${HOMEBREW_MACOS_VERSION//./ }
   if [[ "$HOMEBREW_MACOS_VERSION_NUMERIC" -lt "101000" ]]
   then
     HOMEBREW_SYSTEM_CURL_TOO_OLD="1"
+    HOMEBREW_FORCE_BREWED_CURL="1"
   fi
 
-  # The system Curl is too old for some modern HTTPS certificates on
-  # older macOS versions.
-  if [[ -n "$HOMEBREW_SYSTEM_CURL_TOO_OLD" &&
-        -x "$HOMEBREW_PREFIX/opt/curl/bin/curl" ]]
+  # The system Git is too old for some GitHub's SSL ciphers on older
+  # macOS versions.
+  # https://github.com/blog/2507-weak-cryptographic-standards-removed
+  if [[ "$HOMEBREW_MACOS_VERSION_NUMERIC" -lt "100900" ]]
   then
-    HOMEBREW_CURL="$HOMEBREW_PREFIX/opt/curl/bin/curl"
+    HOMEBREW_SYSTEM_GIT_TOO_OLD="1"
   fi
 
   if [[ -z "$HOMEBREW_CACHE" ]]
@@ -145,8 +125,18 @@ else
     fi
   fi
 fi
+
+if [[ -n "$HOMEBREW_FORCE_BREWED_CURL" &&
+      -x "$HOMEBREW_PREFIX/opt/curl/bin/curl" ]] &&
+         "$HOMEBREW_PREFIX/opt/curl/bin/curl" --version >/dev/null
+then
+  HOMEBREW_CURL="$HOMEBREW_PREFIX/opt/curl/bin/curl"
+else
+  HOMEBREW_CURL="curl"
+fi
+
 HOMEBREW_USER_AGENT="$HOMEBREW_PRODUCT/$HOMEBREW_USER_AGENT_VERSION ($HOMEBREW_SYSTEM; $HOMEBREW_PROCESSOR $HOMEBREW_OS_USER_AGENT_VERSION)"
-HOMEBREW_CURL_VERSION="$("$HOMEBREW_CURL" --version 2>/dev/null | head -n1 | /usr/bin/awk '{print $1"/"$2}')"
+HOMEBREW_CURL_VERSION="$("$HOMEBREW_CURL" --version 2>/dev/null | head -n1 | awk '{print $1"/"$2}')"
 HOMEBREW_USER_AGENT_CURL="$HOMEBREW_USER_AGENT $HOMEBREW_CURL_VERSION"
 
 # Declared in bin/brew
@@ -244,6 +234,17 @@ case "$HOMEBREW_COMMAND" in
   --config)    HOMEBREW_COMMAND="config" ;;
 esac
 
+if [[ "$HOMEBREW_COMMAND" = "cask" ]]
+then
+  HOMEBREW_CASK_COMMAND="$1"
+
+  case "$HOMEBREW_CASK_COMMAND" in
+    instal) HOMEBREW_CASK_COMMAND="install" ;; # gem does the same
+  esac
+fi
+
+# Set HOMEBREW_DEV_CMD_RUN for users who have run a development command.
+# This makes them behave like HOMEBREW_DEVELOPERs for brew update.
 if [[ -z "$HOMEBREW_DEVELOPER" ]]
 then
   export HOMEBREW_GIT_CONFIG_FILE="$HOMEBREW_REPOSITORY/.git/config"
@@ -252,6 +253,14 @@ then
   then
     export HOMEBREW_DEV_CMD_RUN="1"
   fi
+
+  # Don't allow non-developers to customise Ruby warnings.
+  unset HOMEBREW_RUBY_WARNINGS
+fi
+
+if [[ -z "$HOMEBREW_RUBY_WARNINGS" ]]
+then
+  export HOMEBREW_RUBY_WARNINGS="-W0"
 fi
 
 if [[ -f "$HOMEBREW_LIBRARY/Homebrew/cmd/$HOMEBREW_COMMAND.sh" ]]
@@ -315,7 +324,8 @@ update-preinstall() {
   [[ -z "$HOMEBREW_AUTO_UPDATE_CHECKED" ]] || return
   [[ -z "$HOMEBREW_UPDATE_PREINSTALL" ]] || return
 
-  if [[ "$HOMEBREW_COMMAND" = "install" || "$HOMEBREW_COMMAND" = "upgrade" || "$HOMEBREW_COMMAND" = "tap" ]]
+  if [[ "$HOMEBREW_COMMAND" = "install" || "$HOMEBREW_COMMAND" = "upgrade" || "$HOMEBREW_COMMAND" = "tap" ||
+        "$HOMEBREW_CASK_COMMAND" = "install" || "$HOMEBREW_CASK_COMMAND" = "upgrade" ]]
   then
     if [[ -z "$HOMEBREW_VERBOSE" ]]
     then
@@ -369,5 +379,5 @@ else
 
   # Unshift command back into argument list (unless argument list was empty).
   [[ "$HOMEBREW_ARG_COUNT" -gt 0 ]] && set -- "$HOMEBREW_COMMAND" "$@"
-  { update-preinstall; exec "$HOMEBREW_RUBY_PATH" -W0 "$HOMEBREW_LIBRARY/Homebrew/brew.rb" "$@"; }
+  { update-preinstall; exec "$HOMEBREW_RUBY_PATH" $HOMEBREW_RUBY_WARNINGS "$HOMEBREW_LIBRARY/Homebrew/brew.rb" "$@"; }
 fi

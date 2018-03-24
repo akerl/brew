@@ -180,6 +180,7 @@ module Homebrew
           "libecomlodr.dylib", # Symantec Endpoint Protection
           "libsymsea*.dylib", # Symantec Endpoint Protection
           "sentinel.dylib", # SentinelOne
+          "sentinel-*.dylib", # SentinelOne
         ]
 
         __check_stray_files "/usr/local/lib", "*.dylib", white_list, <<~EOS
@@ -338,8 +339,7 @@ module Homebrew
           by Homebrew. If a formula tries to write a file to this directory, the
           install will fail during the link step.
 
-          You should change the ownership and permissions of these directories.
-          back to your user account.
+          You should change the ownership of these directories to your account.
             sudo chown -R $(whoami) #{not_writable_dirs.join(" ")}
         EOS
       end
@@ -788,7 +788,7 @@ module Homebrew
           EOS
         end
 
-        return if ENV["CI"] || ENV["JENKINS_HOME"]
+        return if ENV["CI"]
 
         branch = coretap_path.git_branch
         return if branch.nil? || branch =~ /master/
@@ -822,7 +822,7 @@ module Homebrew
         return if linked.empty?
 
         inject_file_list linked.map(&:full_name), <<~EOS
-          Some keg-only formula are linked into the Cellar.
+          Some keg-only formulae are linked into the Cellar.
           Linking a keg-only formula, such as gettext, into the cellar with
           `brew link <formula>` will cause other formulae to detect them during
           the `./configure` step. This may cause problems when compiling those
@@ -872,7 +872,7 @@ module Homebrew
         return if missing.empty?
 
         <<~EOS
-          Some installed formula are missing dependencies.
+          Some installed formulae are missing dependencies.
           You should `brew install` the missing dependencies:
             brew install #{missing.sort_by(&:full_name) * " "}
 
@@ -934,7 +934,7 @@ module Homebrew
             from your PATH variable.
             Python scripts will now install into #{HOMEBREW_PREFIX}/bin.
             You can delete anything, except 'Extras', from the #{HOMEBREW_PREFIX}/share/python
-            (and #{HOMEBREW_PREFIX}/share/python3) dir and install affected Python packages
+            (and #{HOMEBREW_PREFIX}/share/python@2) dir and install affected Python packages
             anew with `pip install --upgrade`.
           EOS
         end
@@ -966,7 +966,7 @@ module Homebrew
           Putting non-prefixed coreutils in your path can cause gmp builds to fail.
         EOS
       rescue FormulaUnavailableError
-        return
+        nil
       end
 
       def check_for_non_prefixed_findutils
@@ -981,7 +981,7 @@ module Homebrew
           Putting non-prefixed findutils in your path can cause python builds to fail.
         EOS
       rescue FormulaUnavailableError
-        return
+        nil
       end
 
       def check_for_pydistutils_cfg_in_home
@@ -1013,34 +1013,6 @@ module Homebrew
           You have unlinked kegs in your Cellar
           Leaving kegs unlinked can lead to build-trouble and cause brews that depend on
           those kegs to fail to run properly once built. Run `brew link` on these:
-        EOS
-      end
-
-      def check_for_old_env_vars
-        return unless ENV["HOMEBREW_KEEP_INFO"]
-
-        <<~EOS
-          `HOMEBREW_KEEP_INFO` is no longer used
-          info files are no longer deleted by default; you may
-          remove this environment variable.
-        EOS
-      end
-
-      def check_for_pth_support
-        homebrew_site_packages = Language::Python.homebrew_site_packages
-        return unless homebrew_site_packages.directory?
-        return if Language::Python.reads_brewed_pth_files?("python") != false
-        return unless Language::Python.in_sys_path?("python", homebrew_site_packages)
-
-        user_site_packages = Language::Python.user_site_packages "python"
-        <<~EOS
-          Your default Python does not recognize the Homebrew site-packages
-          directory as a special site-packages directory, which means that .pth
-          files will not be followed. This means you will not be able to import
-          some modules after installing them with Homebrew, like wxpython. To fix
-          this for the current user, you can run:
-            mkdir -p #{user_site_packages}
-            echo 'import site; site.addsitedir("#{homebrew_site_packages}")' >> #{user_site_packages}/homebrew.pth
         EOS
       end
 

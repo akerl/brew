@@ -2,9 +2,10 @@ require "download_strategy"
 
 describe AbstractDownloadStrategy do
   subject { described_class.new(name, resource) }
+  let(:specs) { {} }
   let(:name) { "foo" }
   let(:url) { "http://example.com/foo.tar.gz" }
-  let(:resource) { double(Resource, url: url, mirrors: [], specs: {}, version: nil) }
+  let(:resource) { double(Resource, url: url, mirrors: [], specs: specs, version: nil) }
   let(:args) { %w[foo bar baz] }
 
   describe "#expand_safe_system_args" do
@@ -32,6 +33,20 @@ describe AbstractDownloadStrategy do
       FileUtils.touch "bar", mtime: Time.now - 100
       FileUtils.ln_s "not-exist", "baz"
       expect(subject.source_modified_time).to eq(File.mtime("foo"))
+    end
+  end
+
+  context "when specs[:bottle]" do
+    let(:specs) { { bottle: true } }
+
+    it "extends Pourable" do
+      expect(subject).to be_a_kind_of(AbstractDownloadStrategy::Pourable)
+    end
+  end
+
+  context "without specs[:bottle]" do
+    it "is does not extend Pourable" do
+      expect(subject).to_not be_a_kind_of(AbstractDownloadStrategy::Pourable)
     end
   end
 end
@@ -116,7 +131,7 @@ describe GitHubPrivateRepositoryReleaseDownloadStrategy do
   describe "#fetch_release_metadata" do
     it "fetches release metadata from GitHub" do
       expected_release_url = "https://api.github.com/repos/owner/repo/releases/tags/tag"
-      expect(GitHub).to receive(:open).with(expected_release_url).and_return({})
+      expect(GitHub).to receive(:open_api).with(expected_release_url).and_return({})
       subject.send(:fetch_release_metadata)
     end
   end
@@ -200,6 +215,26 @@ describe GitDownloadStrategy do
   end
 end
 
+describe S3DownloadStrategy do
+  subject { described_class.new(name, resource) }
+  let(:name) { "foo" }
+  let(:url) { "http://bucket.s3.amazonaws.com/foo.tar.gz" }
+  let(:resource) { double(Resource, url: url, mirrors: [], specs: {}, version: nil) }
+
+  describe "#_fetch" do
+    subject { described_class.new(name, resource)._fetch }
+
+    context "when given Bad S3 URL" do
+      let(:url) { "http://example.com/foo.tar.gz" }
+      it "should raise Bad S3 URL error" do
+        expect {
+          subject._fetch
+        }.to raise_error(RuntimeError)
+      end
+    end
+  end
+end
+
 describe CurlDownloadStrategy do
   subject { described_class.new(name, resource) }
   let(:name) { "foo" }
@@ -209,12 +244,26 @@ describe CurlDownloadStrategy do
   it "parses the opts and sets the corresponding args" do
     expect(subject.send(:_curl_opts)).to eq(["--user", "download:123456"])
   end
+
+  describe "#tarball_path" do
+    subject { described_class.new(name, resource).tarball_path }
+
+    context "when URL ends with file" do
+      it { is_expected.to eq(HOMEBREW_CACHE/"foo-.tar.gz") }
+    end
+
+    context "when URL file is in middle" do
+      let(:url) { "http://example.com/foo.tar.gz/from/this/mirror" }
+      it { is_expected.to eq(HOMEBREW_CACHE/"foo-.tar.gz") }
+    end
+  end
 end
 
 describe DownloadStrategyDetector do
   describe "::detect" do
-    subject { described_class.detect(url) }
+    subject { described_class.detect(url, strategy) }
     let(:url) { Object.new }
+    let(:strategy) { nil }
 
     context "when given Git URL" do
       let(:url) { "git://example.com/foo.git" }
@@ -224,6 +273,15 @@ describe DownloadStrategyDetector do
     context "when given a GitHub Git URL" do
       let(:url) { "https://github.com/homebrew/brew.git" }
       it { is_expected.to eq(GitHubGitDownloadStrategy) }
+    end
+
+    context "when given strategy = S3DownloadStrategy" do
+      let(:url) { "https://bkt.s3.amazonaws.com/key.tar.gz" }
+      let(:strategy) { S3DownloadStrategy }
+      it "requires aws-sdk-s3" do
+        allow(DownloadStrategyDetector).to receive(:require_aws_sdk).and_return(true)
+        is_expected.to eq(S3DownloadStrategy)
+      end
     end
 
     it "defaults to cURL" do

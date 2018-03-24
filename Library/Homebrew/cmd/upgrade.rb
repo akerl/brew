@@ -1,17 +1,21 @@
-#:  * `upgrade` [<install-options>] [`--cleanup`] [`--fetch-HEAD`] [<formulae>]:
-#:    Upgrade outdated, unpinned brews.
+#:  * `upgrade` [<install-options>] [`--cleanup`] [`--fetch-HEAD`] [`--ignore-pinned`] [<formulae>]:
+#:    Upgrade outdated, unpinned brews (with existing install options).
 #:
 #:    Options for the `install` command are also valid here.
 #:
-#:    If `--cleanup` is specified then remove previously installed <formula> version(s).
+#:    If `--cleanup` is specified or `HOMEBREW_UPGRADE_CLEANUP` is set then remove
+#:    previously installed <formula> version(s).
 #:
 #:    If `--fetch-HEAD` is passed, fetch the upstream repository to detect if
 #:    the HEAD installation of the formula is outdated. Otherwise, the
 #:    repository's HEAD will be checked for updates when a new stable or devel
 #:    version has been released.
 #:
-#:    If <formulae> are given, upgrade only the specified brews (but do so even
-#:    if they are pinned; see `pin`, `unpin`).
+#:    If `--ignore-pinned` is passed, set a 0 exit code even if pinned formulae
+#:    are not upgraded.
+#:
+#:    If <formulae> are given, upgrade only the specified brews (unless they
+#:    are pinned; see `pin`, `unpin`).
 
 require "cmd/install"
 require "cleanup"
@@ -25,13 +29,7 @@ module Homebrew
 
     Homebrew.perform_preinstall_checks
 
-    if ARGV.include?("--all")
-      opoo <<~EOS
-        We decided to not change the behaviour of `brew upgrade` so
-        `brew upgrade --all` is equivalent to `brew upgrade` without any other
-        arguments (so the `--all` is a no-op and can be removed).
-      EOS
-    end
+    odeprecated "'brew upgrade --all'", "'brew upgrade'" if ARGV.include?("--all")
 
     if ARGV.named.empty?
       outdated = Formula.installed.select do |f|
@@ -56,23 +54,20 @@ module Homebrew
       exit 1 if outdated.empty?
     end
 
-    unless upgrade_pinned?
-      pinned = outdated.select(&:pinned?)
-      outdated -= pinned
-    end
-
+    pinned = outdated.select(&:pinned?)
+    outdated -= pinned
     formulae_to_install = outdated.map(&:latest_formula)
+
+    if !pinned.empty? && !ARGV.include?("--ignore-pinned")
+      ofail "Not upgrading #{Formatter.pluralize(pinned.length, "pinned package")}:"
+      puts pinned.map { |f| "#{f.full_specified_name} #{f.pkg_version}" } * ", "
+    end
 
     if formulae_to_install.empty?
       oh1 "No packages to upgrade"
     else
       oh1 "Upgrading #{Formatter.pluralize(formulae_to_install.length, "outdated package")}, with result:"
       puts formulae_to_install.map { |f| "#{f.full_specified_name} #{f.pkg_version}" } * ", "
-    end
-
-    unless upgrade_pinned? || pinned.empty?
-      oh1 "Not upgrading #{Formatter.pluralize(pinned.length, "pinned package")}:"
-      puts pinned.map { |f| "#{f.full_specified_name} #{f.pkg_version}" } * ", "
     end
 
     # Sort keg_only before non-keg_only formulae to avoid any needless conflicts
@@ -89,15 +84,16 @@ module Homebrew
 
     formulae_to_install.each do |f|
       Migrator.migrate_if_needed(f)
-      upgrade_formula(f)
-      next unless ARGV.include?("--cleanup")
-      next unless f.installed?
-      Homebrew::Cleanup.cleanup_formula f
+      begin
+        upgrade_formula(f)
+        next if !ARGV.include?("--cleanup") && !ENV["HOMEBREW_UPGRADE_CLEANUP"]
+        next unless f.installed?
+        Homebrew::Cleanup.cleanup_formula f
+      rescue UnsatisfiedRequirements => e
+        Homebrew.failed = true
+        onoe "#{f}: #{e}"
+      end
     end
-  end
-
-  def upgrade_pinned?
-    !ARGV.named.empty?
   end
 
   def upgrade_formula(f)
@@ -119,19 +115,23 @@ module Homebrew
       tab = Tab.for_keg(keg)
     end
 
+    build_options = BuildOptions.new(Options.create(ARGV.flags_only), f.options)
+    options = build_options.used_options
+    options |= f.build.used_options
+    options &= f.options
+
     fi = FormulaInstaller.new(f)
-    fi.options  = f.build.used_options
-    fi.options &= f.options
-    fi.build_bottle = ARGV.build_bottle? || (!f.bottled? && f.build.build_bottle?)
+    fi.options = options
+    fi.build_bottle = ARGV.build_bottle? || (!f.bottled? && f.build.bottle?)
     fi.installed_on_request = !ARGV.named.empty?
-    fi.link_keg             = keg_was_linked if keg_had_linked_opt
+    fi.link_keg           ||= keg_was_linked if keg_had_linked_opt
     if tab
       fi.installed_as_dependency = tab.installed_as_dependency
       fi.installed_on_request  ||= tab.installed_on_request
     end
     fi.prelude
 
-    oh1 "Upgrading #{f.full_specified_name} #{fi.options.to_a.join " "}"
+    oh1 "Upgrading #{Formatter.identifier(f.full_specified_name)} #{fi.options.to_a.join " "}"
 
     # first we unlink the currently active keg for this formula otherwise it is
     # possible for the existing build to interfere with the build we are about to
@@ -140,17 +140,10 @@ module Homebrew
 
     fi.install
     fi.finish
-
-    # If the formula was pinned, and we were force-upgrading it, unpin and
-    # pin it again to get a symlink pointing to the correct keg.
-    if f.pinned?
-      f.unpin
-      f.pin
-    end
   rescue FormulaInstallationAlreadyAttemptedError
     # We already attempted to upgrade f as part of the dependency tree of
     # another formula. In that case, don't generate an error, just move on.
-    return
+    nil
   rescue CannotInstallFormulaError => e
     ofail e
   rescue BuildError => e

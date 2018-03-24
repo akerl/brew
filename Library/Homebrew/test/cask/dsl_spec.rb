@@ -75,6 +75,7 @@ describe Hbc::DSL, :cask do
 
       it "may use deprecated DSL version hash syntax" do
         allow(ENV).to receive(:[]).with("HOMEBREW_DEVELOPER").and_return(nil)
+        allow(ENV).to receive(:[]).with("HOMEBREW_NO_COLOR").and_return(nil)
 
         expect(cask.token).to eq("with-dsl-version")
         expect(cask.url.to_s).to eq("http://example.com/TestCask.dmg")
@@ -232,8 +233,9 @@ describe Hbc::DSL, :cask do
       expect(cask.caveats).to be_empty
 
       cask = Hbc::Cask.new("cask-with-caveats") do
-        def caveats; <<~EOS
-          When you install this Cask, you probably want to know this.
+        def caveats
+          <<~EOS
+            When you install this Cask, you probably want to know this.
           EOS
         end
       end
@@ -550,14 +552,14 @@ describe Hbc::DSL, :cask do
       let(:token) { "appdir-interpolation" }
 
       it "is allowed" do
-        expect(cask.artifacts.first.source).to eq(Hbc.appdir/"some/path")
+        expect(cask.artifacts.first.source).to eq(Hbc::Config.global.appdir/"some/path")
       end
     end
 
     it "does not include a trailing slash" do
       begin
-        original_appdir = Hbc.appdir
-        Hbc.appdir = "#{original_appdir}/"
+        original_appdir = Hbc::Config.global.appdir
+        Hbc::Config.global.appdir = "#{original_appdir}/"
 
         cask = Hbc::Cask.new("appdir-trailing-slash") do
           binary "#{appdir}/some/path"
@@ -565,7 +567,7 @@ describe Hbc::DSL, :cask do
 
         expect(cask.artifacts.first.source).to eq(original_appdir/"some/path")
       ensure
-        Hbc.appdir = original_appdir
+        Hbc::Config.global.appdir = original_appdir
       end
     end
   end

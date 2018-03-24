@@ -255,7 +255,7 @@ class Pathname
     else
       false
     end
-  rescue Errno::EACCES, Errno::ENOENT
+  rescue Errno::EACCES, Errno::ENOENT, Errno::EBUSY
     false
   end
 
@@ -436,11 +436,14 @@ class Pathname
   end
 
   # Writes an exec script that invokes a java jar
-  def write_jar_script(target_jar, script_name, java_opts = "")
+  def write_jar_script(target_jar, script_name, java_opts = "", java_version: nil)
     mkpath
+    java_home = if java_version
+      "JAVA_HOME=\"$(#{Language::Java.java_home_cmd(java_version)})\" "
+    end
     join(script_name).write <<~EOS
       #!/bin/bash
-      exec java #{java_opts} -jar #{target_jar} "$@"
+      #{java_home}exec java #{java_opts} -jar #{target_jar} "$@"
     EOS
   end
 
@@ -470,6 +473,10 @@ class Pathname
       end
     }
   end
+
+  def mach_o_bundle?
+    false
+  end
 end
 
 require "extend/os/pathname"
@@ -495,7 +502,7 @@ module ObserverPathnameExtension
     MAXIMUM_VERBOSE_OUTPUT = 100
 
     def verbose?
-      return ARGV.verbose? unless ENV["HOMEBREW_TRAVIS"]
+      return ARGV.verbose? unless ENV["CI"]
       return false unless ARGV.verbose?
 
       if total < MAXIMUM_VERBOSE_OUTPUT

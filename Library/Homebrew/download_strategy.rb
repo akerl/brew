@@ -6,6 +6,13 @@ class AbstractDownloadStrategy
   extend Forwardable
   include FileUtils
 
+  module Pourable
+    def stage
+      ohai "Pouring #{cached_location.basename}"
+      super
+    end
+  end
+
   attr_reader :meta, :name, :version, :resource
   attr_reader :shutup
 
@@ -15,6 +22,7 @@ class AbstractDownloadStrategy
     @url = resource.url
     @version = resource.version
     @meta = resource.specs
+    extend Pourable if meta[:bottle]
   end
 
   # Download and cache the resource as {#cached_location}.
@@ -217,12 +225,12 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
   def stage
     case type = cached_location.compression_type
     when :zip
-      with_system_path { quiet_safe_system "unzip", "-qq", cached_location }
+      quiet_safe_system "unzip", "-qq", cached_location
       chdir
     when :gzip_only
-      with_system_path { buffered_write("gunzip") }
+      buffered_write "gunzip"
     when :bzip2_only
-      with_system_path { buffered_write("bunzip2") }
+      buffered_write "bunzip2"
     when :gzip, :bzip2, :xz, :compress, :tar
       tar_flags = "x"
       if type == :gzip
@@ -233,16 +241,14 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
         tar_flags << "J"
       end
       tar_flags << "f"
-      with_system_path do
-        if type == :xz && DependencyCollector.tar_needs_xz_dependency?
-          pipe_to_tar(xzpath)
-        else
-          safe_system "tar", tar_flags, cached_location
-        end
+      if type == :xz && DependencyCollector.tar_needs_xz_dependency?
+        pipe_to_tar xzpath
+      else
+        safe_system "tar", tar_flags, cached_location
       end
       chdir
     when :lzip
-      with_system_path { pipe_to_tar(lzippath) }
+      pipe_to_tar lzippath
       chdir
     when :lha
       safe_system lhapath, "x", cached_location
@@ -305,7 +311,11 @@ class AbstractFileDownloadStrategy < AbstractDownloadStrategy
     # We can't use basename_without_params, because given a URL like
     #   https://example.com/download.php?file=foo-1.0.tar.gz
     # the extension we want is ".tar.gz", not ".php".
-    Pathname.new(@url).extname[/[^?]+/]
+    Pathname.new(@url).ascend do |path|
+      ext = path.extname[/[^?]+/]
+      return ext if ext
+    end
+    nil
   end
 end
 
@@ -440,25 +450,12 @@ class NoUnzipCurlDownloadStrategy < CurlDownloadStrategy
   end
 end
 
-# This strategy extracts our binary packages.
-class CurlBottleDownloadStrategy < CurlDownloadStrategy
-  def stage
-    ohai "Pouring #{cached_location.basename}"
-    super
-  end
-end
-
 # This strategy extracts local binary packages.
 class LocalBottleDownloadStrategy < AbstractFileDownloadStrategy
   attr_reader :cached_location
 
   def initialize(path)
     @cached_location = path
-  end
-
-  def stage
-    ohai "Pouring #{cached_location.basename}"
-    super
   end
 end
 
@@ -471,16 +468,6 @@ end
 # distribution.  (It will work for public buckets as well.)
 class S3DownloadStrategy < CurlDownloadStrategy
   def _fetch
-    # Put the aws gem requirement here (vs top of file) so it's only
-    # a dependency of S3 users, not all Homebrew users
-    require "rubygems"
-    begin
-      require "aws-sdk-v1"
-    rescue LoadError
-      onoe "Install the aws-sdk gem into the gem repo used by brew."
-      raise
-    end
-
     if @url !~ %r{^https?://([^.].*)\.s3\.amazonaws\.com/(.+)$}
       raise "Bad S3 URL: " + @url
     end
@@ -490,12 +477,12 @@ class S3DownloadStrategy < CurlDownloadStrategy
     ENV["AWS_ACCESS_KEY_ID"] = ENV["HOMEBREW_AWS_ACCESS_KEY_ID"]
     ENV["AWS_SECRET_ACCESS_KEY"] = ENV["HOMEBREW_AWS_SECRET_ACCESS_KEY"]
 
-    obj = AWS::S3.new.buckets[bucket].objects[key]
     begin
-      s3url = obj.url_for(:get)
-    rescue AWS::Errors::MissingCredentialsError
+      signer = Aws::S3::Presigner.new
+      s3url = signer.presigned_url :get_object, bucket: bucket, key: key
+    rescue Aws::Sigv4::Errors::MissingCredentialsError
       ohai "AWS credentials missing, trying public URL instead."
-      s3url = obj.public_url
+      s3url = @url
     end
 
     curl_download s3url, to: temporary_path
@@ -602,7 +589,7 @@ class GitHubPrivateRepositoryReleaseDownloadStrategy < GitHubPrivateRepositoryDo
 
   def fetch_release_metadata
     release_url = "https://api.github.com/repos/#{@owner}/#{@repo}/releases/tags/#{@tag}"
-    GitHub.open(release_url)
+    GitHub.open_api(release_url)
   end
 end
 
@@ -1007,11 +994,11 @@ class MercurialDownloadStrategy < VCSDownloadStrategy
   end
 
   def source_modified_time
-    Time.parse Utils.popen_read("hg", "tip", "--template", "{date|isodate}", "-R", cached_location.to_s)
+    Time.parse Utils.popen_read(hgpath, "tip", "--template", "{date|isodate}", "-R", cached_location.to_s)
   end
 
   def last_commit
-    Utils.popen_read("hg", "parent", "--template", "{node|short}", "-R", cached_location.to_s)
+    Utils.popen_read(hgpath, "parent", "--template", "{node|short}", "-R", cached_location.to_s)
   end
 
   private
@@ -1114,6 +1101,9 @@ class DownloadStrategyDetector
   def self.detect(url, strategy = nil)
     if strategy.nil?
       detect_from_url(url)
+    elsif strategy == S3DownloadStrategy
+      require_aws_sdk
+      strategy
     elsif strategy.is_a?(Class) && strategy < AbstractDownloadStrategy
       strategy
     elsif strategy.is_a?(Symbol)
@@ -1166,5 +1156,10 @@ class DownloadStrategyDetector
     else
       raise "Unknown download strategy #{symbol} was requested."
     end
+  end
+
+  def self.require_aws_sdk
+    Homebrew.install_gem! "aws-sdk-s3", "~> 1.8"
+    require "aws-sdk-s3"
   end
 end

@@ -4,6 +4,8 @@ require_relative "../../extend/string"
 module RuboCop
   module Cop
     class FormulaCop < Cop
+      include RangeHelp
+
       attr_accessor :file_path
       @registry = Cop.registry
 
@@ -127,10 +129,26 @@ module RuboCop
         end
       end
 
+      # Matches receiver part of method,
+      # EX: to match `ARGV.<whatever>()`
+      # call `find_instance_call(node, "ARGV")`
+      # yields to a block with parent node of receiver
+      def find_instance_call(node, name)
+        node.each_descendant(:send) do |method_node|
+          next if method_node.receiver.nil?
+          next if method_node.receiver.const_name != name &&
+                  method_node.receiver.method_name != name
+          @offense_source_range = method_node.receiver.source_range
+          @offensive_node = method_node.receiver
+          return true unless block_given?
+          yield method_node
+        end
+      end
+
       # Returns nil if does not depend on dependency_name
       # args: node - dependency_name - dependency's name
       def depends_on?(dependency_name, *types)
-        types = [:required, :build, :optional, :recommended, :run] if types.empty?
+        types = [:any] if types.empty?
         dependency_nodes = find_every_method_call_by_name(@body, :depends_on)
         idx = dependency_nodes.index do |n|
           types.any? { |type| depends_on_name_type?(n, dependency_name, type) }
@@ -152,14 +170,14 @@ module RuboCop
         case type
         when :required
           type_match = required_dependency?(node)
-          if type_match && !name_match
-            name_match = required_dependency_name?(node, name)
-          end
-        when :build, :optional, :recommended, :run
+          name_match ||= required_dependency_name?(node, name) if type_match
+        when :build, :test, :optional, :recommended
           type_match = dependency_type_hash_match?(node, type)
-          if type_match && !name_match
-            name_match = dependency_name_hash_match?(node, name)
-          end
+          name_match ||= dependency_name_hash_match?(node, name) if type_match
+        when :any
+          type_match = true
+          name_match ||= required_dependency_name?(node, name)
+          name_match ||= dependency_name_hash_match?(node, name)
         else
           type_match = false
         end
@@ -198,7 +216,7 @@ module RuboCop
       EOS
 
       def_node_search :dependency_name_hash_match?, <<~EOS
-        (hash (pair ({str sym} %1) ({str sym} _)))
+        (hash (pair ({str sym} %1) (...)))
       EOS
 
       # To compare node with appropriate Ruby variable
@@ -409,7 +427,7 @@ module RuboCop
 
       # Returns the block length of the block node
       def block_size(block)
-        block_length(block)
+        block.loc.end.line - block.loc.begin.line
       end
 
       # Source buffer is required as an argument to report style violations
@@ -451,7 +469,7 @@ module RuboCop
       end
 
       def problem(msg)
-        add_offense(@offensive_node, @offense_source_range, msg)
+        add_offense(@offensive_node, location: @offense_source_range, message: msg)
       end
 
       private

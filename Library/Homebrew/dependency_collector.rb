@@ -1,6 +1,5 @@
 require "dependency"
 require "dependencies"
-require "ld64_dependency"
 require "requirement"
 require "requirements"
 require "set"
@@ -18,11 +17,6 @@ require "extend/cachable"
 # specifications into the proper kinds of dependencies and requirements.
 class DependencyCollector
   extend Cachable
-
-  # Define the languages that we can handle as external dependencies.
-  LANGUAGE_MODULES = Set[
-    :lua, :lua51, :perl, :python, :python3, :ruby
-  ].freeze
 
   attr_reader :deps, :requirements
 
@@ -58,16 +52,36 @@ class DependencyCollector
     parse_spec(spec, Array(tags))
   end
 
-  def ant_dep(tags)
-    Dependency.new("ant", tags)
+  def git_dep_if_needed(tags)
+    return if Utils.git_available?
+    Dependency.new("git", tags)
   end
 
-  def xz_dep(tags)
-    Dependency.new("xz", tags)
+  def subversion_dep_if_needed(tags)
+    return if Utils.svn_available?
+    Dependency.new("subversion", tags)
   end
+
+  def cvs_dep_if_needed(tags)
+    Dependency.new("cvs", tags) unless which("cvs")
+  end
+
+  def xz_dep_if_needed(tags)
+    Dependency.new("xz", tags) unless which("xz")
+  end
+
+  def unzip_dep_if_needed(tags)
+    Dependency.new("unzip", tags) unless which("unzip")
+  end
+
+  def bzip2_dep_if_needed(tags)
+    Dependency.new("bzip2", tags) unless which("bzip2")
+  end
+
+  def ld64_dep_if_needed(*); end
 
   def self.tar_needs_xz_dependency?
-    !new.xz_dep([]).nil?
+    !new.xz_dep_if_needed([]).nil?
   end
 
   private
@@ -94,8 +108,6 @@ class DependencyCollector
       TapDependency.new(spec, tags)
     elsif tags.empty?
       Dependency.new(spec, tags)
-    elsif (tag = tags.first) && LANGUAGE_MODULES.include?(tag)
-      LanguageModuleRequirement.new(tag, spec, tags[1])
     else
       Dependency.new(spec, tags)
     end
@@ -107,30 +119,11 @@ class DependencyCollector
     when :xcode      then XcodeRequirement.new(tags)
     when :linux      then LinuxRequirement.new(tags)
     when :macos      then MacOSRequirement.new(tags)
-    when :mysql      then MysqlRequirement.new(tags)
-    when :postgresql then PostgresqlRequirement.new(tags)
-    when :gpg        then GPG2Requirement.new(tags)
-    when :fortran    then FortranRequirement.new(tags)
-    when :mpi        then MPIRequirement.new(*tags)
-    when :tex        then TeXRequirement.new(tags)
     when :arch       then ArchRequirement.new(tags)
-    when :hg         then MercurialRequirement.new(tags)
-    when :python     then PythonRequirement.new(tags)
-    when :python3    then Python3Requirement.new(tags)
     when :java       then JavaRequirement.new(tags)
-    when :rbenv      then RbenvRequirement.new(tags)
-    when :ruby       then RubyRequirement.new(tags)
     when :osxfuse    then OsxfuseRequirement.new(tags)
-    when :perl       then PerlRequirement.new(tags)
     when :tuntap     then TuntapRequirement.new(tags)
-    when :ant        then ant_dep(tags)
-    when :emacs      then EmacsRequirement.new(tags)
-    # Tiger's ld is too old to properly link some software
-    when :ld64       then LD64Dependency.new if MacOS.version < :leopard
-    # Tiger doesn't ship expat in /usr/lib
-    when :expat      then Dependency.new("expat", tag) if MacOS.version < :leopard
-    when :python2
-      PythonRequirement.new(tags)
+    when :ld64       then ld64_dep_if_needed(tags)
     else
       raise ArgumentError, "Unsupported special dependency #{spec.inspect}"
     end
@@ -151,17 +144,17 @@ class DependencyCollector
     if strategy <= CurlDownloadStrategy
       parse_url_spec(spec.url, tags)
     elsif strategy <= GitDownloadStrategy
-      GitRequirement.new(tags)
+      git_dep_if_needed(tags)
+    elsif strategy <= SubversionDownloadStrategy
+      subversion_dep_if_needed(tags)
     elsif strategy <= MercurialDownloadStrategy
-      MercurialRequirement.new(tags)
+      Dependency.new("mercurial", tags)
     elsif strategy <= FossilDownloadStrategy
       Dependency.new("fossil", tags)
     elsif strategy <= BazaarDownloadStrategy
       Dependency.new("bazaar", tags)
     elsif strategy <= CVSDownloadStrategy
-      CVSRequirement.new(tags)
-    elsif strategy <= SubversionDownloadStrategy
-      SubversionRequirement.new(tags)
+      cvs_dep_if_needed(tags)
     elsif strategy < AbstractDownloadStrategy
       # allow unknown strategies to pass through
     else
@@ -172,7 +165,9 @@ class DependencyCollector
 
   def parse_url_spec(url, tags)
     case File.extname(url)
-    when ".xz"          then xz_dep(tags)
+    when ".xz"          then xz_dep_if_needed(tags)
+    when ".zip"         then unzip_dep_if_needed(tags)
+    when ".bz2"         then bzip2_dep_if_needed(tags)
     when ".lha", ".lzh" then Dependency.new("lha", tags)
     when ".lz"          then Dependency.new("lzip", tags)
     when ".rar"         then Dependency.new("unrar", tags)

@@ -2,14 +2,16 @@ require "find"
 require "pathname"
 require "rspec/its"
 require "rspec/wait"
+require "rspec/retry"
 require "rubocop"
 require "rubocop/rspec/support"
 require "set"
+require "support/no_seed_progress_formatter"
 
 if ENV["HOMEBREW_TESTS_COVERAGE"]
   require "simplecov"
 
-  if ENV["CODECOV_TOKEN"] || ENV["HOMEBREW_TRAVIS"]
+  if ENV["CODECOV_TOKEN"] || ENV["TRAVIS"]
     require "codecov"
     SimpleCov.formatter = SimpleCov::Formatter::Codecov
   end
@@ -71,6 +73,10 @@ RSpec.configure do |config|
 
   config.before(:each, :needs_network) do
     skip "Requires network connection." unless ENV["HOMEBREW_TEST_ONLINE"]
+  end
+
+  config.before(:each, :needs_svn) do
+    skip "Requires subversion." unless which "svn"
   end
 
   config.around(:each) do |example|

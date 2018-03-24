@@ -4,6 +4,8 @@
 #:    <formula> is usually the name of the formula to install, but it can be specified
 #:    in several different ways. See [SPECIFYING FORMULAE](#specifying-formulae).
 #:
+#:    If `--with-hostname` is passed, include the hostname in the Gist.
+#:
 #:    If `--new-issue` is passed, automatically create a new issue in the appropriate
 #:    GitHub repository as well as creating the Gist.
 #:
@@ -27,7 +29,7 @@ module Homebrew
     # Dummy summary file, asciibetically first, to control display title of gist
     files["# #{f.name} - #{timestamp}.txt"] = { content: brief_build_info(f) }
     files["00.config.out"] = { content: s.string }
-    files["00.doctor.out"] = { content: `brew doctor 2>&1` }
+    files["00.doctor.out"] = { content: Utils.popen_read("#{HOMEBREW_PREFIX}/bin/brew", "doctor", err: :out) }
     unless f.core_formula?
       tap = <<~EOS
         Formula: #{f.name}
@@ -35,6 +37,16 @@ module Homebrew
         Path: #{f.path}
       EOS
       files["00.tap.out"] = { content: tap }
+    end
+
+    if GitHub.api_credentials_type == :none
+      puts <<~EOS
+        You can create a new personal access token:
+         #{GitHub::ALL_SCOPES_URL}
+        and then set the new HOMEBREW_GITHUB_API_TOKEN as the authentication method.
+
+      EOS
+      login!
     end
 
     # Description formatted to work well as page title when viewing gist
@@ -46,16 +58,6 @@ module Homebrew
     url = create_gist(files, descr)
 
     if ARGV.include?("--new-issue") || ARGV.switch?("n")
-      if GitHub.api_credentials_type == :none
-        puts <<~EOS
-          You can create a new personal access token:
-           #{GitHub::ALL_SCOPES_URL}
-          and then set the new HOMEBREW_GITHUB_API_TOKEN as the authentication method.
-
-        EOS
-        login!
-      end
-
       url = create_issue(f.tap, "#{f.name} failed to build on #{MacOS.full_version}", url)
     end
 
@@ -111,14 +113,14 @@ module Homebrew
     url = "https://api.github.com/gists"
     data = { "public" => true, "files" => files, "description" => description }
     scopes = GitHub::CREATE_GIST_SCOPES
-    GitHub.open(url, data: data, scopes: scopes)["html_url"]
+    GitHub.open_api(url, data: data, scopes: scopes)["html_url"]
   end
 
   def create_issue(repo, title, body)
     url = "https://api.github.com/repos/#{repo}/issues"
     data = { "title" => title, "body" => body }
     scopes = GitHub::CREATE_ISSUE_SCOPES
-    GitHub.open(url, data: data, scopes: scopes)["html_url"]
+    GitHub.open_api(url, data: data, scopes: scopes)["html_url"]
   end
 
   def gist_logs

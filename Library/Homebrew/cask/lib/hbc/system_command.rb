@@ -37,7 +37,7 @@ module Hbc
       result
     end
 
-    def initialize(executable, args: [], sudo: false, input: [], print_stdout: false, print_stderr: true, must_succeed: false, **options)
+    def initialize(executable, args: [], sudo: false, input: [], print_stdout: false, print_stderr: true, must_succeed: false, path: ENV["PATH"], **options)
       @executable = executable
       @args = args
       @sudo = sudo
@@ -47,19 +47,16 @@ module Hbc
       @must_succeed = must_succeed
       options.extend(HashValidator).assert_valid_keys(:chdir)
       @options = options
+      @path = path
     end
 
     def command
-      @command ||= if sudo?
-        [*sudo_prefix, executable, *args]
-      else
-        [Shellwords.shellescape(executable), *args]
-      end
+      [*sudo_prefix, executable, *args]
     end
 
     private
 
-    attr_reader :executable, :args, :input, :options, :processed_output, :processed_status
+    attr_reader :executable, :args, :input, :options, :processed_output, :processed_status, :path
 
     attr_predicate :sudo?, :print_stdout?, :print_stderr?, :must_succeed?
 
@@ -85,8 +82,10 @@ module Hbc
     end
 
     def each_output_line(&b)
+      executable, *args = expanded_command
+
       raw_stdin, raw_stdout, raw_stderr, raw_wait_thr =
-        Open3.popen3(*expanded_command, **options)
+        Open3.popen3({ "PATH" => path }, [executable, executable], *args, **options)
 
       write_input_to(raw_stdin)
       raw_stdin.close_write

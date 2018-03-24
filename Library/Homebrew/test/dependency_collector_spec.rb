@@ -49,9 +49,9 @@ describe DependencyCollector do
       expect(find_requirement(X11Requirement).tags).to be_empty
     end
 
-    specify "x11 with minimum version" do
+    specify "x11 with (ignored) minimum version" do
       subject.add x11: "2.5.1"
-      expect(find_requirement(X11Requirement).min_version.to_s).to eq("2.5.1")
+      expect(find_requirement(X11Requirement).min_version.to_s).to_not eq("2.5.1")
     end
 
     specify "x11 with tag" do
@@ -59,16 +59,11 @@ describe DependencyCollector do
       expect(find_requirement(X11Requirement)).to be_optional
     end
 
-    specify "x11 with minimum version and tag" do
+    specify "x11 with (ignored) minimum version and tag" do
       subject.add x11: ["2.5.1", :optional]
       dep = find_requirement(X11Requirement)
-      expect(dep.min_version.to_s).to eq("2.5.1")
+      expect(dep.min_version.to_s).to_not eq("2.5.1")
       expect(dep).to be_optional
-    end
-
-    specify "ant dependency" do
-      subject.add ant: :build
-      expect(find_dependency("ant")).to eq(Dependency.new("ant", [:build]))
     end
 
     it "doesn't mutate the dependency spec" do
@@ -78,22 +73,10 @@ describe DependencyCollector do
       expect(spec).to eq(copy)
     end
 
-    it "creates a resource dependency from a '.git' URL" do
-      resource = Resource.new
-      resource.url("git://example.com/foo/bar.git")
-      expect(subject.add(resource)).to be_an_instance_of(GitRequirement)
-    end
-
     it "creates a resource dependency from a CVS URL" do
       resource = Resource.new
       resource.url(":pserver:anonymous:@example.com:/cvsroot/foo/bar", using: :cvs)
-      expect(subject.add(resource)).to be_an_instance_of(CVSRequirement)
-    end
-
-    it "creates a resource dependency from a Subversion URL" do
-      resource = Resource.new
-      resource.url("svn://example.com/foo/bar")
-      expect(subject.add(resource)).to be_an_instance_of(SubversionRequirement)
+      expect(subject.add(resource)).to eq(Dependency.new("cvs", [:build]))
     end
 
     it "creates a resource dependency from a '.7z' URL" do
@@ -144,6 +127,16 @@ describe DependencyCollector do
       resource = Resource.new
       resource.download_strategy = Class.new
       expect { subject.add(resource) }.to raise_error(TypeError)
+    end
+
+    it "is deprecated when called with a language module", :needs_compat do
+      expect(subject).to receive(:odeprecated)
+      subject.add("lpeg" => :lua)
+    end
+
+    it "is deprecated when called with deprecated requirements", :needs_compat do
+      expect(subject).to receive(:odeprecated)
+      subject.add(:python)
     end
   end
 end

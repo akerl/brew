@@ -211,7 +211,7 @@ class Tap
     requested_remote = options[:clone_target] || default_remote
 
     if official? && DEPRECATED_OFFICIAL_TAPS.include?(repo)
-      opoo "#{name} was deprecated. This tap is now empty as all its formulae were migrated."
+      odie "#{name} was deprecated. This tap is now empty as all its formulae were migrated."
     end
 
     if installed?
@@ -543,16 +543,12 @@ end
 # A specialized {Tap} class for the core formulae
 class CoreTap < Tap
   def default_remote
-    if OS.mac? || ENV["HOMEBREW_FORCE_HOMEBREW_ORG"]
-      "https://github.com/halyard/homebrew-core".freeze
-    else
-      "https://github.com/Linuxbrew/homebrew-core".freeze
-    end
+    "https://github.com/halyard/homebrew-core".freeze
   end
 
   # @private
   def initialize
-    super "Homebrew", "core"
+    super "halyard", "homebrew-core"
   end
 
   def self.instance

@@ -82,6 +82,14 @@ def odeprecated(method, replacement = nil, disable: false, disable_on: nil, call
   # - Location of caller of deprecated method (if all else fails).
   backtrace = caller
   tap_message = nil
+
+  # Don't throw deprecations at all for cached, .brew or .metadata files.
+  return if backtrace.any? do |line|
+    line.include?(HOMEBREW_CACHE) ||
+    line.include?("/.brew/") ||
+    line.include?("/.metadata/")
+  end
+
   caller_message = backtrace.detect do |line|
     next unless line =~ %r{^#{Regexp.escape(HOMEBREW_LIBRARY)}/Taps/([^/]+/[^/]+)/}
     tap = Tap.fetch Regexp.last_match(1)
@@ -101,6 +109,9 @@ def odeprecated(method, replacement = nil, disable: false, disable_on: nil, call
 
   if ARGV.homebrew_developer? || disable ||
      Homebrew.raise_deprecation_exceptions?
+    if replacement || tap_message
+      message += "Or, even better, submit a PR to fix it!"
+    end
     raise MethodDeprecatedError, message
   elsif !Homebrew.auditing?
     opoo "#{message}\n"
@@ -154,6 +165,7 @@ def interactive_shell(f = nil)
   end
 
   if ENV["SHELL"].include?("zsh") && ENV["HOME"].start_with?(HOMEBREW_TEMP.resolved_path.to_s)
+    FileUtils.mkdir_p ENV["HOME"]
     FileUtils.touch "#{ENV["HOME"]}/.zshrc"
   end
 
@@ -187,16 +199,10 @@ module Homebrew
     _system(cmd, *args)
   end
 
-  def install_gem_setup_path!(name, version = nil, executable = name)
-    # Respect user's preferences for where gems should be installed.
-    ENV["GEM_HOME"] = if ENV["HOMEBREW_GEM_HOME"].to_s.empty?
-      Gem.user_dir
-    else
-      ENV["HOMEBREW_GEM_HOME"]
-    end
-    unless ENV["HOMEBREW_GEM_PATH"].to_s.empty?
-      ENV["GEM_PATH"] = ENV["HOMEBREW_GEM_PATH"]
-    end
+  def install_gem!(name, version = nil)
+    # Match where our bundler gems are.
+    ENV["GEM_HOME"] = "#{ENV["HOMEBREW_LIBRARY"]}/Homebrew/vendor/bundle/ruby/#{RbConfig::CONFIG["ruby_version"]}"
+    ENV["GEM_PATH"] = ENV["GEM_HOME"]
 
     # Make rubygems notice env changes.
     Gem.clear_paths
@@ -208,24 +214,28 @@ module Homebrew
     path.prepend(Gem.bindir)
     ENV["PATH"] = path
 
-    if Gem::Specification.find_all_by_name(name, version).empty?
-      ohai "Installing or updating '#{name}' gem"
-      install_args = %W[--no-ri --no-rdoc #{name}]
-      install_args << "--version" << version if version
+    return unless Gem::Specification.find_all_by_name(name, version).empty?
 
-      # Do `gem install [...]` without having to spawn a separate process or
-      # having to find the right `gem` binary for the running Ruby interpreter.
-      require "rubygems/commands/install_command"
-      install_cmd = Gem::Commands::InstallCommand.new
-      install_cmd.handle_options(install_args)
-      exit_code = 1 # Should not matter as `install_cmd.execute` always throws.
-      begin
-        install_cmd.execute
-      rescue Gem::SystemExitException => e
-        exit_code = e.exit_code
-      end
-      odie "Failed to install/update the '#{name}' gem." if exit_code.nonzero?
+    ohai "Installing or updating '#{name}' gem"
+    install_args = %W[--no-ri --no-rdoc #{name}]
+    install_args << "--version" << version if version
+
+    # Do `gem install [...]` without having to spawn a separate process or
+    # having to find the right `gem` binary for the running Ruby interpreter.
+    require "rubygems/commands/install_command"
+    install_cmd = Gem::Commands::InstallCommand.new
+    install_cmd.handle_options(install_args)
+    exit_code = 1 # Should not matter as `install_cmd.execute` always throws.
+    begin
+      install_cmd.execute
+    rescue Gem::SystemExitException => e
+      exit_code = e.exit_code
     end
+    odie "Failed to install/update the '#{name}' gem." if exit_code.nonzero?
+  end
+
+  def install_gem_setup_path!(name, version = nil, executable = name)
+    install_gem!(name, version)
 
     return if which(executable)
     odie <<~EOS
@@ -265,12 +275,6 @@ module Homebrew
     end
   end
   # rubocop:enable Style/GlobalVars
-end
-
-def with_system_path
-  with_env(PATH: PATH.new("/usr/bin", "/bin")) do
-    yield
-  end
 end
 
 def with_homebrew_path
@@ -344,7 +348,7 @@ def which_editor
   editor = %w[atom subl mate edit vim].find do |candidate|
     candidate if which(candidate, ENV["HOMEBREW_PATH"])
   end
-  editor ||= "/usr/bin/vim"
+  editor ||= "vim"
 
   opoo <<~EOS
     Using #{editor} because no editor was set in the environment.
@@ -376,7 +380,7 @@ end
 # GZips the given paths, and returns the gzipped paths
 def gzip(*paths)
   paths.collect do |path|
-    with_system_path { safe_system "gzip", path }
+    safe_system "gzip", path
     Pathname.new("#{path}.gz")
   end
 end
@@ -571,4 +575,8 @@ def tap_and_name_comparison
       a <=> b
     end
   end
+end
+
+def command_help_lines(path)
+  path.read.lines.grep(/^#:/).map { |line| line.slice(2..-1) }
 end

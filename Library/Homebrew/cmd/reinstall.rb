@@ -1,5 +1,5 @@
 #:  * `reinstall` <formula>:
-#:    Uninstall and then install <formula>.
+#:    Uninstall and then install <formula> (with existing install options).
 
 require "formula_installer"
 require "development_tools"
@@ -39,15 +39,15 @@ module Homebrew
     fi.build_bottle         = ARGV.build_bottle? || (!f.bottled? && f.build.bottle?)
     fi.interactive          = ARGV.interactive?
     fi.git                  = ARGV.git?
-    fi.link_keg             = keg_was_linked if keg_had_linked_opt
+    fi.link_keg           ||= keg_was_linked if keg_had_linked_opt
     fi.prelude
 
-    oh1 "Reinstalling #{f.full_name} #{options.to_a.join " "}"
+    oh1 "Reinstalling #{Formatter.identifier(f.full_name)} #{options.to_a.join " "}"
 
     fi.install
     fi.finish
   rescue FormulaInstallationAlreadyAttemptedError
-    return
+    nil
   rescue Exception # rubocop:disable Lint/RescueException
     ignore_interrupts { restore_backup(keg, keg_was_linked) }
     raise

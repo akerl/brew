@@ -541,13 +541,12 @@ describe RuboCop::Cop::FormulaAudit::Miscellaneous do
     end
 
     it "Using ARGV to check options" do
-      expect_offense(<<~RUBY)
+      expect_no_offenses(<<~RUBY)
         class Foo < Formula
           desc "foo"
           url 'http://example.com/foo-1.0.tgz'
           def install
             verbose = ARGV.verbose?
-                      ^^^^^^^^^^^^^ Use build instead of ARGV to check options
           end
         end
       RUBY
@@ -718,19 +717,6 @@ describe RuboCop::Cop::FormulaAudit::Miscellaneous do
       RUBY
     end
 
-    it "deprecated ENV.fortran usage" do
-      expect_offense(<<~RUBY)
-        class Foo < Formula
-          desc "foo"
-          url 'http://example.com/foo-1.0.tgz'
-          test do
-            ENV.fortran
-            ^^^^^^^^^^^ Use `depends_on :fortran` instead of `ENV.fortran`
-          end
-        end
-      RUBY
-    end
-
     it "deprecated ARGV.include? (--HEAD) usage" do
       expect_offense(<<~RUBY)
         class Foo < Formula
@@ -739,7 +725,19 @@ describe RuboCop::Cop::FormulaAudit::Miscellaneous do
           test do
             head = ARGV.include? "--HEAD"
                                   ^^^^^^ Use "if build.head?" instead
+                   ^^^^ Use build instead of ARGV to check options
           end
+        end
+      RUBY
+    end
+
+    it "deprecated needs :openmp usage" do
+      expect_offense(<<~RUBY)
+        class Foo < Formula
+          desc "foo"
+          url 'http://example.com/foo-1.0.tgz'
+          needs :openmp
+          ^^^^^^^^^^^^^ 'needs :openmp' should be replaced with 'depends_on \"gcc\"'
         end
       RUBY
     end

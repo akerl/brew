@@ -1,4 +1,4 @@
-#:  * `linkage` [`--test`] [`--reverse`]  <formula>:
+#:  * `linkage` [`--test`] [`--reverse`] <formula>:
 #:    Checks the library links of an installed formula.
 #:
 #:    Only works on installed formulae. An error is raised if it is run on
@@ -10,7 +10,7 @@
 #:    If `--reverse` is passed, print the dylib followed by the binaries
 #:    which link to it for each library the keg references.
 
-require "os/mac/linkage_checker"
+require "linkage_checker"
 
 module Homebrew
   module_function

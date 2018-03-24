@@ -343,8 +343,8 @@ class FormulaAmbiguousPythonError < RuntimeError
   def initialize(formula)
     super <<~EOS
       The version of python to use with the virtualenv in the `#{formula.full_name}` formula
-      cannot be guessed automatically. If the simultaneous use of python and python3
-      is intentional, please add `:using => "python"` or `:using => "python3"` to
+      cannot be guessed automatically. If the simultaneous use of python and python@2
+      is intentional, please add `:using => "python"` or `:using => "python@2"` to
       `virtualenv_install_with_resources` to resolve the ambiguity manually.
     EOS
   end
@@ -458,7 +458,7 @@ end
 # if the user passes any flags/environment that would case a bottle-only
 # installation on a system without build tools to fail
 class BuildFlagsError < RuntimeError
-  def initialize(flags)
+  def initialize(flags, bottled: true)
     if flags.length > 1
       flag_text = "flags"
       require_text = "require"
@@ -467,13 +467,18 @@ class BuildFlagsError < RuntimeError
       require_text = "requires"
     end
 
-    super <<~EOS
+    message = <<~EOS.chomp!
       The following #{flag_text}:
         #{flags.join(", ")}
       #{require_text} building tools, but none are installed.
       #{DevelopmentTools.installation_instructions}
+    EOS
+
+    message << <<~EOS.chomp! if bottled
       Alternatively, remove the #{flag_text} to attempt bottle installation.
     EOS
+
+    super message
   end
 end
 

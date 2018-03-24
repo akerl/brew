@@ -1,3 +1,5 @@
+require "uri"
+
 module Hbc
   module CaskLoader
     class FromContentLoader
@@ -16,11 +18,11 @@ module Hbc
       end
 
       def initialize(content)
-        @content = content
+        @content = content.force_encoding("UTF-8")
       end
 
       def load
-        instance_eval(content.force_encoding("UTF-8"), __FILE__, __LINE__)
+        instance_eval(content, __FILE__, __LINE__)
       end
 
       private
@@ -52,7 +54,7 @@ module Hbc
 
         @content = IO.read(path)
 
-        super
+        instance_eval(content, path)
       end
 
       private

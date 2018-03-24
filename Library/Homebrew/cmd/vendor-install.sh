@@ -8,21 +8,29 @@ source "$HOMEBREW_LIBRARY/Homebrew/utils/lock.sh"
 
 VENDOR_DIR="$HOMEBREW_LIBRARY/Homebrew/vendor"
 
-# Built from https://github.com/Homebrew/homebrew-portable.
+# Built from https://github.com/Homebrew/homebrew-portable-ruby.
 if [[ -n "$HOMEBREW_MACOS" ]]
 then
   if [[ "$HOMEBREW_PROCESSOR" = "Intel" ]]
   then
-    ruby_URL="https://homebrew.bintray.com/bottles-portable/portable-ruby-2.3.3.leopard_64.bottle.1.tar.gz"
+    ruby_URL="https://homebrew.bintray.com/bottles-portable-ruby/portable-ruby-2.3.3.leopard_64.bottle.1.tar.gz"
+    ruby_URL2="https://github.com/Homebrew/homebrew-portable-ruby/releases/download/2.3.3/portable-ruby-2.3.3.leopard_64.bottle.1.tar.gz"
     ruby_SHA="34ce9e4c9c1be28db564d744165aa29291426f8a3d2ef806ba4f0b9175aedb2b"
-  else
-    ruby_URL=""
-    ruby_SHA=""
   fi
 elif [[ -n "$HOMEBREW_LINUX" ]]
 then
-  ruby_URL="https://homebrew.bintray.com/bottles-portable/portable-ruby-2.3.3.x86_64_linux.bottle.1.tar.gz"
-  ruby_SHA="33643b1ca6f860d6df01686636326785763e5e81cf0cef37d8a7ab96a6ca1fa1"
+  case "$HOMEBREW_PROCESSOR" in
+    armv7l)
+      ruby_URL="https://homebrew.bintray.com/bottles-portable-ruby/portable-ruby-2.3.3.armv7l_linux.bottle.1.tar.gz"
+      ruby_URL2="https://github.com/Homebrew/homebrew-portable-ruby/releases/download/2.3.3/portable-ruby-2.3.3.armv7l_linux.bottle.1.tar.gz"
+      ruby_SHA="d26affe6f6ac299557a9044b311b4066b554874fc828ebc323d2705d3f4a8249"
+      ;;
+    x86_64)
+      ruby_URL="https://homebrew.bintray.com/bottles-portable-ruby/portable-ruby-2.3.3.x86_64_linux.bottle.1.tar.gz"
+      ruby_URL2="https://github.com/Homebrew/homebrew-portable-ruby/releases/download/2.3.3/portable-ruby-2.3.3.x86_64_linux.bottle.1.tar.gz"
+      ruby_SHA="33643b1ca6f860d6df01686636326785763e5e81cf0cef37d8a7ab96a6ca1fa1"
+      ;;
+  esac
 fi
 
 # Execute the specified command, and suppress stderr unless HOMEBREW_STDERR is set.
@@ -82,7 +90,20 @@ fetch() {
 
     if [[ ! -f "$temporary_path" ]]
     then
-      odie "Download failed: $VENDOR_URL"
+      [[ -n "$HOMEBREW_QUIET" ]] || echo "==> Downloading $VENDOR_URL2" >&2
+      "$HOMEBREW_CURL" "${curl_args[@]}" "$VENDOR_URL2" -o "$temporary_path"
+    fi
+
+    if [[ ! -f "$temporary_path" ]]
+    then
+      odie <<EOS
+Failed to download $VENDOR_URL and $VENDOR_URL2!
+
+Do not file an issue on GitHub about this: you will need to figure out for
+yourself what issue with your internet connection restricts your access to
+both Bintray (used for Homebrew bottles/binary packages) and GitHub
+(used for Homebrew updates).
+EOS
     fi
 
     trap '' SIGINT
@@ -93,10 +114,10 @@ fetch() {
   if [[ -x "/usr/bin/shasum" ]]
   then
     sha="$(/usr/bin/shasum -a 256 "$CACHED_LOCATION" | cut -d' ' -f1)"
-  elif [[ -x "$(which sha256sum)" ]]
+  elif [[ -x "$(type -P sha256sum)" ]]
   then
     sha="$(sha256sum "$CACHED_LOCATION" | cut -d' ' -f1)"
-  elif [[ -x "$(which ruby)" ]]
+  elif [[ -x "$(type -P ruby)" ]]
   then
     sha="$(ruby <<EOSCRIPT
             require 'digest/sha2'
@@ -203,8 +224,10 @@ homebrew-vendor-install() {
   [[ -n "$HOMEBREW_DEBUG" ]] && set -x
 
   url_var="${VENDOR_NAME}_URL"
+  url2_var="${VENDOR_NAME}_URL2"
   sha_var="${VENDOR_NAME}_SHA"
   VENDOR_URL="${!url_var}"
+  VENDOR_URL2="${!url2_var}"
   VENDOR_SHA="${!sha_var}"
 
   if [[ -z "$VENDOR_URL" || -z "$VENDOR_SHA" ]]

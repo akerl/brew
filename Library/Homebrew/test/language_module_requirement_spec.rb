@@ -1,6 +1,6 @@
-require "requirements/language_module_requirement"
+require "compat/requirements/language_module_requirement"
 
-describe LanguageModuleRequirement do
+describe LanguageModuleRequirement, :needs_compat do
   specify "unique dependencies are not equal" do
     x = described_class.new(:node, "less")
     y = described_class.new(:node, "coffee-script")
@@ -30,10 +30,6 @@ describe LanguageModuleRequirement do
   context "when the language is Python", :needs_python do
     it "does not satisfy invalid dependencies" do
       expect(described_class.new(:python, "notapackage")).not_to be_satisfied
-    end
-
-    it "satisfies valid dependencies" do
-      expect(described_class.new(:python, "datetime")).to be_satisfied
     end
   end
 

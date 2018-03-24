@@ -44,12 +44,9 @@ class Build
   def expand_reqs
     formula.recursive_requirements do |dependent, req|
       build = effective_build_options_for(dependent)
-      if (req.optional? || req.recommended?) && build.without?(req)
+      if req.prune_from_option?(build)
         Requirement.prune
-      elsif req.build? && dependent != formula
-        Requirement.prune
-      elsif req.satisfied? && (dep = req.to_dependency) && dep.installed?
-        deps << dep
+      elsif req.prune_if_build_and_not_dependent?(dependent, formula)
         Requirement.prune
       end
     end
@@ -58,9 +55,9 @@ class Build
   def expand_deps
     formula.recursive_dependencies do |dependent, dep|
       build = effective_build_options_for(dependent)
-      if (dep.optional? || dep.recommended?) && build.without?(dep)
+      if dep.prune_from_option?(build)
         Dependency.prune
-      elsif dep.build? && dependent != formula
+      elsif dep.prune_if_build_and_not_dependent?(dependent, formula)
         Dependency.prune
       elsif dep.build?
         Dependency.keep_but_prune_recursive_deps
