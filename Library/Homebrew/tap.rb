@@ -548,7 +548,7 @@ class CoreTap < Tap
 
   # @private
   def initialize
-    super "halyard", "homebrew-core"
+    super "halyard", "core"
   end
 
   def self.instance
