@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "BREW" "1" "March 2018" "Homebrew" "brew"
+.TH "BREW" "1" "April 2018" "Homebrew" "brew"
 .
 .SH "NAME"
 \fBbrew\fR \- The missing package manager for macOS
@@ -388,7 +388,7 @@ Rerun the post\-install steps for \fIformula\fR\.
 .
 .TP
 \fBprune\fR [\fB\-\-dry\-run\fR]
-Remove dead symlinks from the Homebrew prefix\. This is generally not needed, but can be useful when doing DIY installations\. Also remove broken app symlinks from \fB/Applications\fR and \fB~/Applications\fR that were previously created by \fBbrew linkapps\fR\.
+Remove dead symlinks from the Homebrew prefix\. This is generally not needed, but can be useful when doing DIY installations\.
 .
 .IP
 If \fB\-\-dry\-run\fR or \fB\-n\fR is passed, show what would be removed, but do not actually remove anything\.
@@ -446,14 +446,17 @@ If \fB\-\-fix\fR is passed, automatically fix style violations using RuboCop\'s 
 If \fB\-\-display\-cop\-names\fR is passed, include the RuboCop cop name for each violation in the output\.
 .
 .IP
+If \fB\-\-rspec\fR is passed, install and use the RuboCop RSpec gem\.
+.
+.IP
 Passing \fB\-\-only\-cops=\fR\fIcops\fR will check for violations of only the listed RuboCop \fIcops\fR, while \fB\-\-except\-cops=\fR\fIcops\fR will skip checking the listed \fIcops\fR\. For either option \fIcops\fR should be a comma\-separated list of cop names\.
 .
 .IP
 Exits with a non\-zero status if any style violations are found\.
 .
 .TP
-\fBswitch\fR \fIname\fR \fIversion\fR
-Symlink all of the specific \fIversion\fR of \fIname\fR\'s install to Homebrew prefix\.
+\fBswitch\fR \fIformula\fR \fIversion\fR
+Symlink all of the specific \fIversion\fR of \fIformula\fR\'s install to Homebrew prefix\.
 .
 .TP
 \fBtap\fR
@@ -478,10 +481,6 @@ By default, the repository is cloned as a shallow copy (\fB\-\-depth=1\fR), but 
 .TP
 \fBtap\fR \fB\-\-repair\fR
 Migrate tapped formulae from symlink\-based to directory\-based structure\.
-.
-.TP
-\fBtap\fR \fB\-\-list\-official\fR
-List all official taps\.
 .
 .TP
 \fBtap\fR \fB\-\-list\-pinned\fR
@@ -896,7 +895,7 @@ If \fB\-\-keep\-tmp\fR is passed, the temporary files created for the test are n
 Example: \fBbrew install jruby && brew test jruby\fR
 .
 .TP
-\fBtests\fR [\fB\-\-verbose\fR] [\fB\-\-coverage\fR] [\fB\-\-generic\fR] [\fB\-\-no\-compat\fR] [\fB\-\-only=\fR\fItest_script\fR[\fB:\fR\fIline_number\fR]] [\fB\-\-seed\fR \fIseed\fR] [\fB\-\-online\fR] [\fB\-\-official\-cmd\-taps\fR]
+\fBtests\fR [\fB\-\-verbose\fR] [\fB\-\-coverage\fR] [\fB\-\-generic\fR] [\fB\-\-no\-compat\fR] [\fB\-\-only=\fR\fItest_script\fR[\fB:\fR\fIline_number\fR]] [\fB\-\-seed=\fR\fIseed\fR] [\fB\-\-online\fR] [\fB\-\-official\-cmd\-taps\fR]
 Run Homebrew\'s unit and integration tests\. If provided, \fB\-\-only=\fR\fItest_script\fR runs only \fItest_script\fR_spec\.rb, and \fB\-\-seed\fR randomizes tests with the provided value instead of a random seed\.
 .
 .IP
@@ -1093,6 +1092,7 @@ An arbitrary URL
 Homebrew can install formulae via URL, e\.g\. \fBhttps://raw\.github\.com/Homebrew/homebrew\-core/master/Formula/git\.rb\fR\. The formula file will be cached for later use\.
 .
 .SH "ENVIRONMENT"
+Note that environment variables must have a value set to be detected\. For example, \fBexport HOMEBREW_NO_INSECURE_REDIRECT=1\fR rather than just \fBexport HOMEBREW_NO_INSECURE_REDIRECT\fR\.
 .
 .TP
 \fBHOMEBREW_ARTIFACT_DOMAIN\fR
@@ -1127,6 +1127,10 @@ If set, instructs Homebrew to use the given directory as the download cache\.
 .
 .IP
 \fIDefault:\fR \fB~/Library/Caches/Homebrew\fR\.
+.
+.TP
+\fBHOMEBREW_CURLRC\fR
+If set, Homebrew will not pass \fB\-q\fR when invoking \fBcurl\fR(1) (which disables the use of \fBcurlrc\fR)\.
 .
 .TP
 \fBHOMEBREW_CURL_VERBOSE\fR

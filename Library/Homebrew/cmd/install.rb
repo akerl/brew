@@ -71,7 +71,6 @@ require "missing_formula"
 require "diagnostic"
 require "cmd/search"
 require "formula_installer"
-require "tap"
 require "hardware"
 require "development_tools"
 
@@ -166,7 +165,8 @@ module Homebrew
             formulae << f
           else
             opoo <<~EOS
-              #{f.full_name} #{f.pkg_version} is already installed
+              #{f.full_name} #{f.pkg_version} is already installed and up-to-date
+              To reinstall #{f.pkg_version}, run `brew reinstall #{f.name}`
             EOS
           end
         elsif (ARGV.build_head? && new_head_installed) || prefix_installed
@@ -190,12 +190,17 @@ module Homebrew
             EOS
           elsif !f.linked? || f.keg_only?
             msg = <<~EOS
-              #{msg}, it's just not linked.
+              #{msg}, it's just not linked
               You can use `brew link #{f}` to link this version.
             EOS
           elsif ARGV.only_deps?
             msg = nil
             formulae << f
+          else
+            msg = <<~EOS
+              #{msg} and up-to-date
+              To reinstall #{f.pkg_version}, run `brew reinstall #{f.name}`
+            EOS
           end
           opoo msg if msg
         elsif !f.any_version_installed? && old_formula = f.old_installed_formulae.first
@@ -257,10 +262,10 @@ module Homebrew
         return
       end
 
-      query = query_regexp(e.name)
+      regex = query_regexp(e.name)
 
       ohai "Searching for similarly named formulae..."
-      formulae_search_results = search_formulae(query)
+      formulae_search_results = search_formulae(regex)
       case formulae_search_results.length
       when 0
         ofail "No similarly named formulae found."
@@ -277,7 +282,7 @@ module Homebrew
       # Do not search taps if the formula name is qualified
       return if e.name.include?("/")
       ohai "Searching taps..."
-      taps_search_results = search_taps(query)
+      taps_search_results = search_taps(e.name)
       case taps_search_results.length
       when 0
         ofail "No formulae found in taps."

@@ -39,11 +39,9 @@
 
 require "formula"
 require "formula_versions"
-require "utils"
 require "utils/curl"
 require "extend/ENV"
 require "formula_cellar_checks"
-require "official_taps"
 require "cmd/search"
 require "cmd/style"
 require "date"
@@ -55,7 +53,7 @@ module Homebrew
   module_function
 
   def audit
-    args = Homebrew::CLI::Parser.new do
+    args = Homebrew::CLI::Parser.parse do
       switch      "--strict"
       switch      "--online"
       switch      "--new-formula"
@@ -63,11 +61,13 @@ module Homebrew
       switch      "--display-cop-names"
       switch      "--display-filename"
       switch      "-D", "--audit-debug", description: "Activates debugging and profiling"
+      switch      :verbose
+      switch      :debug
       comma_array "--only"
       comma_array "--except"
       comma_array "--only-cops"
       comma_array "--except-cops"
-    end.parse
+    end
 
     Homebrew.auditing = true
     inject_dump_stats!(FormulaAuditor, /^audit_/) if args.audit_debug?
@@ -564,6 +564,7 @@ class FormulaAuditor
       gtk-doc 1.25
       libart 2.3.21
       pygtkglext 1.1.0
+      libepoxy 1.5.0
     ].each_slice(2).to_a.map do |formula, version|
       [formula, version.split(".")[0..1].join(".")]
     end
@@ -733,6 +734,10 @@ class FormulaAuditor
 
     if line =~ %r{#\{share\}/#{Regexp.escape(formula.name)}[/'"]}
       problem "Use \#{pkgshare} instead of \#{share}/#{formula.name}"
+    end
+
+    if line =~ /depends_on .+ if build\.with(out)?\?\(?["']\w+["']\)?/
+      problem "`Use :optional` or `:recommended` instead of `#{Regexp.last_match(0)}`"
     end
 
     return unless line =~ %r{share(\s*[/+]\s*)(['"])#{Regexp.escape(formula.name)}(?:\2|/)}

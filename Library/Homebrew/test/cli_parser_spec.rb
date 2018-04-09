@@ -2,37 +2,49 @@ require_relative "../cli_parser"
 
 describe Homebrew::CLI::Parser do
   describe "test switch options" do
+    before do
+      allow(ENV).to receive(:[]).with("HOMEBREW_PRY").and_return("1")
+      allow(ENV).to receive(:[]).with("HOMEBREW_VERBOSE")
+    end
+
     subject(:parser) {
       described_class.new do
-        switch "-v", "--verbose", description: "Flag for verbosity"
-        switch "--more-verbose",  description: "Flag for higher verbosity"
+        switch :verbose, description: "Flag for verbosity"
+        switch "--more-verbose", description: "Flag for higher verbosity"
+        switch "--pry", env: :pry
       end
     }
 
     it "parses short option" do
-      args = parser.parse(["-v"])
-      expect(args).to be_verbose
+      parser.parse(["-v"])
+      expect(Homebrew.args).to be_verbose
     end
 
     it "parses a single valid option" do
-      args = parser.parse(["--verbose"])
-      expect(args).to be_verbose
+      parser.parse(["--verbose"])
+      expect(Homebrew.args).to be_verbose
     end
 
     it "parses a valid option along with few unnamed args" do
       args = %w[--verbose unnamed args]
       parser.parse(args)
-      expect(args).to eq %w[unnamed args]
+      expect(Homebrew.args).to be_verbose
+      expect(args).to eq %w[--verbose unnamed args]
     end
 
     it "parses a single option and checks other options to be nil" do
       args = parser.parse(["--verbose"])
-      expect(args).to be_verbose
+      expect(Homebrew.args).to be_verbose
       expect(args.more_verbose?).to be nil
     end
 
     it "raises an exception when an invalid option is passed" do
       expect { parser.parse(["--random"]) }.to raise_error(OptionParser::InvalidOption, /--random/)
+    end
+
+    it "maps environment var to an option" do
+      args = parser.parse([])
+      expect(args.pry?).to be true
     end
   end
 
@@ -43,6 +55,7 @@ describe Homebrew::CLI::Parser do
         comma_array "--files",    description: "Comma separated filenames"
       end
     }
+
     it "parses a long flag option with its argument" do
       args = parser.parse(["--filename=random.txt"])
       expect(args.filename).to eq "random.txt"
