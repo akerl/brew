@@ -100,7 +100,7 @@ module Hbc
           <<~EOS
             #{@cask} requires Java #{java_version}. You can install it with
 
-              brew cask install caskroom/versions/java#{java_version}
+              brew cask install homebrew/cask-versions/java#{java_version}
           EOS
         end
       end
@@ -125,6 +125,13 @@ module Hbc
         EOS
       end
 
+      caveat :license do |web_page|
+        <<~EOS
+          Installing #{@cask} means you have AGREED to the license at
+            #{web_page}
+        EOS
+      end
+
       caveat :free_license do |web_page|
         <<~EOS
           The vendor offers a free license for #{@cask} at
@@ -143,7 +150,7 @@ module Hbc
           If this report is accurate, please duplicate it at
             #{Formatter.url("https://bugreport.apple.com/")}
           If this report is a mistake, please let us know by opening an issue at
-            #{Formatter.url("https://github.com/caskroom/homebrew-cask/issues/new")}
+            #{Formatter.url("https://github.com/Homebrew/homebrew-cask/issues/new")}
         EOS
       end
     end

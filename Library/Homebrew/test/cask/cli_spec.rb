@@ -1,14 +1,14 @@
 describe Hbc::CLI, :cask do
   it "lists the taps for Casks that show up in two taps" do
     listing = described_class.nice_listing(%w[
-                                             caskroom/cask/adium
-                                             caskroom/cask/google-chrome
+                                             homebrew/cask/adium
+                                             homebrew/cask/google-chrome
                                              passcod/homebrew-cask/adium
                                            ])
 
     expect(listing).to eq(%w[
-                            caskroom/cask/adium
                             google-chrome
+                            homebrew/cask/adium
                             passcod/cask/adium
                           ])
   end
@@ -74,8 +74,8 @@ describe Hbc::CLI, :cask do
     end
   end
 
-  it "provides a help message for all commands" do
-    described_class.command_classes.each do |command_class|
+  it "provides a help message for all visible commands" do
+    described_class.command_classes.select(&:visible).each do |command_class|
       expect(command_class.help).to match(/\w+/), command_class.name
     end
   end

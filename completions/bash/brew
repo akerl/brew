@@ -251,17 +251,6 @@ _brew_link() {
   __brew_complete_installed
 }
 
-_brew_linkapps() {
-  local cur="${COMP_WORDS[COMP_CWORD]}"
-  case "$cur" in
-    --*)
-      __brewcomp "--local"
-      return
-      ;;
-  esac
-  __brew_complete_installed
-}
-
 _brew_list() {
   local allopts="--unbrewed --verbose --pinned --versions --multiple"
   local cur="${COMP_WORDS[COMP_CWORD]}"
@@ -482,17 +471,6 @@ _brew_uninstall() {
   __brew_complete_installed
 }
 
-_brew_unlinkapps() {
-  local cur="${COMP_WORDS[COMP_CWORD]}"
-  case "$cur" in
-    --*)
-      __brewcomp "--dry-run --local"
-      return
-      ;;
-  esac
-  __brew_complete_installed
-}
-
 _brew_unpack() {
   local cur="${COMP_WORDS[COMP_CWORD]}"
   case "$cur" in
@@ -591,7 +569,7 @@ __brew_cask_complete_formulae ()
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local lib=$(brew --repository)/Library
     local taps=${lib}/Taps
-    local casks=${lib}/Taps/caskroom/homebrew-cask/Casks
+    local casks=${lib}/Taps/homebrew/homebrew-cask/Casks
     local ff=$(\ls ${casks} 2>/dev/null | \sed 's/\.rb//g')
 
     COMPREPLY=($(compgen -W "$ff" -- "$cur"))
@@ -607,7 +585,7 @@ __brew_cask_complete_installed ()
 __brew_cask_complete_caskroom ()
 {
     local cur="${COMP_WORDS[COMP_CWORD]}"
-    local caskroom_dir=/opt/homebrew-cask/Caskroom/
+    local caskroom_dir="$(brew --prefix)/Caskroom/"
     local files=$(\ls ${caskroom_dir} 2>/dev/null)
     COMPREPLY=($(compgen -W "$files" -- "$cur"))
 }
@@ -743,7 +721,7 @@ _brew_cask ()
     done
 
     if [[ $i -eq $COMP_CWORD ]]; then
-        __brew_caskcomp "abv audit cat cleanup create doctor edit fetch home info install list ls outdated reinstall remove rm search style uninstall upgrade zap -S --force --caskroom --verbose --appdir --colorpickerdir --prefpanedir --qlplugindir --fontdir --servicedir --input_methoddir --internet_plugindir --screen_saverdir --no-binaries --debug --version"
+        __brew_caskcomp "abv audit cat cleanup create doctor edit fetch home info install list ls outdated reinstall remove rm search style uninstall upgrade zap -S --force --verbose --appdir --colorpickerdir --prefpanedir --qlplugindir --fontdir --servicedir --input_methoddir --internet_plugindir --screen_saverdir --no-binaries --debug --version"
         return
     fi
 
@@ -827,7 +805,6 @@ _brew() {
     install|instal)             _brew_install ;;
     irb)                        _brew_irb ;;
     link|ln)                    _brew_link ;;
-    linkapps)                   _brew_linkapps ;;
     list|ls)                    _brew_list ;;
     log)                        _brew_log ;;
     man)                        _brew_man ;;
@@ -852,7 +829,6 @@ _brew() {
     tests)                      _brew_tests ;;
     uninstall|remove|rm)        _brew_uninstall ;;
     unlink)                     __brew_complete_installed ;;
-    unlinkapps)                 _brew_unlinkapps ;;
     unpack)                     _brew_unpack ;;
     unpin)                      __brew_complete_formulae ;;
     untap)                      __brew_complete_tapped ;;

@@ -5,7 +5,7 @@ Features, usage and installation instructions are [summarised on the homepage](h
 
 ## What Packages Are Available?
 1. Type `brew search` for a list.
-2. Or visit [formulae.brew.sh](http://formulae.brew.sh) to browse packages online.
+2. Or visit [formulae.brew.sh](https://formulae.brew.sh) to browse packages online.
 3. Or use `brew search --desc <keyword>` to browse packages from the command line.
 
 ## More Documentation
@@ -22,7 +22,7 @@ Second, read the [Troubleshooting Checklist](https://docs.brew.sh/Troubleshootin
 [![Travis](https://img.shields.io/travis/Homebrew/brew.svg)](https://travis-ci.org/Homebrew/brew)
 [![Codecov](https://img.shields.io/codecov/c/github/Homebrew/brew.svg)](https://codecov.io/gh/Homebrew/brew)
 
-We'd love you to contribute to Homebrew. First, please read our [Contribution Guide](https://github.com/Homebrew/brew/blob/master/CONTRIBUTING.md) and [Code of Conduct](https://github.com/Homebrew/brew/blob/master/CODE_OF_CONDUCT.md#code-of-conduct).
+We'd love you to contribute to Homebrew. First, please read our [Contribution Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md#code-of-conduct).
 
 We explicitly welcome contributions from people who have never contributed to open-source before: we were all beginners once! We can help build on a partially working pull request with the aim of getting it merged. We are also actively seeking to diversify our contributors and especially welcome contributions from women from all backgrounds and people of colour.
 
@@ -40,11 +40,11 @@ Homebrew's lead maintainer is [Mike McQuaid](https://github.com/mikemcquaid).
 
 halyard/homebrew-core's lead maintainer is [ilovezfs](https://github.com/ilovezfs).
 
-Homebrew/brew's other current maintainers are [ilovezfs](https://github.com/ilovezfs), [Alyssa Ross](https://github.com/alyssais), [JCount](https://github.com/jcount), [Misty De Meo](https://github.com/mistydemeo), [Gautham Goli](https://github.com/GauthamGoli), [Markus Reiter](https://github.com/reitermarkus) and [William Woodruff](https://github.com/woodruffw).
+Homebrew/brew's other current maintainers are [ilovezfs](https://github.com/ilovezfs), [JCount](https://github.com/jcount), [Misty De Meo](https://github.com/mistydemeo), [Gautham Goli](https://github.com/GauthamGoli), [Markus Reiter](https://github.com/reitermarkus) and [William Woodruff](https://github.com/woodruffw).
 
 Homebrew/homebrew-core's other current maintainers are [FX Coudert](https://github.com/fxcoudert), [JCount](https://github.com/jcount), [Misty De Meo](https://github.com/mistydemeo) and [Tom Schoonjans](https://github.com/tschoonj).
 
-Former maintainers with significant contributions include [Tim Smith](https://github.com/tdsmith), [Baptiste Fontaine](https://github.com/bfontaine), [Xu Cheng](https://github.com/xu-cheng), [Martin Afanasjew](https://github.com/UniqMartin), [Dominyk Tiller](https://github.com/DomT4), [Brett Koonce](https://github.com/asparagui), [Charlie Sharpsteen](https://github.com/Sharpie), [Jack Nagel](https://github.com/jacknagel), [Adam Vandenberg](https://github.com/adamv), [Andrew Janke](https://github.com/apjanke), [Alex Dunn](https://github.com/dunn), [neutric](https://github.com/neutric), [Tomasz Pajor](https://github.com/nijikon), [Uladzislau Shablinski](https://github.com/vladshablinsky) and Homebrew's creator: [Max Howell](https://github.com/mxcl).
+Former maintainers with significant contributions include [Tim Smith](https://github.com/tdsmith), [Baptiste Fontaine](https://github.com/bfontaine), [Xu Cheng](https://github.com/xu-cheng), [Martin Afanasjew](https://github.com/UniqMartin), [Dominyk Tiller](https://github.com/DomT4), [Brett Koonce](https://github.com/asparagui), [Charlie Sharpsteen](https://github.com/Sharpie), [Jack Nagel](https://github.com/jacknagel), [Adam Vandenberg](https://github.com/adamv), [Andrew Janke](https://github.com/apjanke), [Alex Dunn](https://github.com/dunn), [neutric](https://github.com/neutric), [Tomasz Pajor](https://github.com/nijikon), [Uladzislau Shablinski](https://github.com/vladshablinsky), [Alyssa Ross](https://github.com/alyssais),  and Homebrew's creator: [Max Howell](https://github.com/mxcl).
 
 ## Community
 - [discourse.brew.sh (forum)](https://discourse.brew.sh)
@@ -52,7 +52,7 @@ Former maintainers with significant contributions include [Tim Smith](https://gi
 - [@MacHomebrew (Twitter)](https://twitter.com/MacHomebrew)
 
 ## License
-Code is under the [BSD 2-clause "Simplified" License](https://github.com/Homebrew/brew/tree/master/LICENSE.txt).
+Code is under the [BSD 2-clause "Simplified" License](LICENSE.txt).
 Documentation is under the [Creative Commons Attribution license](https://creativecommons.org/licenses/by/4.0/).
 
 ## Donations
@@ -90,10 +90,6 @@ Our physical hardware is hosted by [Commsworld](https://www.commsworld.com).
 Our bottles (binary packages) are hosted by [Bintray](https://bintray.com/homebrew).
 
 [![Downloads by Bintray](https://bintray.com/docs/images/downloads_by_bintray_96.png)](https://bintray.com/homebrew)
-
-[Our website](https://brew.sh) is hosted by [Netlify](https://www.netlify.com).
-
-[![Deploys by Netlify](https://www.netlify.com/img/global/badges/netlify-color-accent.svg)](https://www.netlify.com)
 
 Secure password storage and syncing provided by [1Password for Teams](https://1password.com/teams/) by [AgileBits](https://agilebits.com).
 

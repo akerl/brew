@@ -29,8 +29,8 @@ module Homebrew
       switch "--online"
       switch :debug
       switch :verbose
-      flag   "--only", required: true
-      flag   "--seed", required: true
+      flag   "--only="
+      flag   "--seed="
     end
 
     HOMEBREW_LIBRARY_PATH.cd do
@@ -38,6 +38,7 @@ module Homebrew
       ENV.delete("VERBOSE")
       ENV.delete("HOMEBREW_CASK_OPTS")
       ENV.delete("HOMEBREW_TEMP")
+      ENV.delete("HOMEBREW_LINKAGE_CACHE")
       ENV["HOMEBREW_NO_ANALYTICS_THIS_RUN"] = "1"
       ENV["HOMEBREW_DEVELOPER"] = "1"
       ENV["HOMEBREW_NO_COMPAT"] = "1" if args.no_compat?
@@ -113,6 +114,7 @@ module Homebrew
       end
 
       unless OS.linux?
+        args << "--tag" << "~needs_linux"
         files = files.reject { |p| p =~ %r{^test/os/linux(/.*|_spec\.rb)$} }
       end
 

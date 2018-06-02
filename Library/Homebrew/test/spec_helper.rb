@@ -43,6 +43,15 @@ RSpec.configure do |config|
 
   config.filter_run_when_matching :focus
 
+  # TODO: when https://github.com/rspec/rspec-expectations/pull/1056
+  #       makes it into a stable release:
+  # config.expect_with :rspec do |c|
+  #   c.max_formatted_output_length = 200
+  # end
+
+  # Never truncate output objects.
+  RSpec::Support::ObjectFormatter.default_instance.max_formatted_output_length = nil
+
   config.include(FileUtils)
 
   config.include(RuboCop::RSpec::ExpectOffense)
@@ -124,12 +133,13 @@ RSpec.configure do |config|
         HOMEBREW_PREFIX/"share",
         HOMEBREW_PREFIX/"opt",
         HOMEBREW_PREFIX/"Caskroom",
-        HOMEBREW_LIBRARY/"Taps/caskroom",
+        HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-cask",
         HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-bar",
         HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-bundle",
         HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-foo",
         HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-services",
         HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-shallow",
+        HOMEBREW_LIBRARY/"PinnedTaps",
         HOMEBREW_REPOSITORY/".git",
         CoreTap.instance.path/".git",
         CoreTap.instance.alias_dir,

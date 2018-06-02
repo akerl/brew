@@ -36,6 +36,7 @@ module Hbc
       check_untrusted_pkg
       check_github_releases_appcast
       check_latest_with_appcast
+      check_stanza_requires_uninstall
       self
     rescue StandardError => e
       odebug "#{e.message}\n#{e.backtrace.join("\n")}"
@@ -59,10 +60,19 @@ module Hbc
       return if @cask.sourcefile_path.nil?
 
       tap = @cask.tap
-      return if tap.nil? || tap.user != "caskroom"
+      return if tap.nil?
+      return if tap.user != "Homebrew"
 
       return unless cask.artifacts.any? { |k| k.is_a?(Hbc::Artifact::Pkg) && k.stanza_options.key?(:allow_untrusted) }
       add_warning "allow_untrusted is not permitted in official Homebrew-Cask taps"
+    end
+
+    def check_stanza_requires_uninstall
+      odebug "Auditing stanzas which require an uninstall"
+
+      return if cask.artifacts.none? { |k| k.is_a?(Hbc::Artifact::Pkg) || k.is_a?(Hbc::Artifact::Installer) }
+      return if cask.artifacts.any? { |k| k.is_a?(Hbc::Artifact::Uninstall) }
+      add_warning "installer and pkg stanzas require an uninstall stanza"
     end
 
     def check_single_pre_postflight
@@ -123,7 +133,7 @@ module Hbc
         return unless previous_cask.version == cask.version
         return if previous_cask.sha256 == cask.sha256
 
-        add_error "only sha256 changed (see: https://github.com/caskroom/homebrew-cask/blob/master/doc/cask_language_reference/stanzas/sha256.md)"
+        add_error "only sha256 changed (see: https://github.com/Homebrew/homebrew-cask/blob/master/doc/cask_language_reference/stanzas/sha256.md)"
       rescue CaskError => e
         add_warning "Skipped version and checksum comparison. Reading previous version failed: #{e}"
       end
@@ -240,7 +250,7 @@ module Hbc
       return if cask.appcast
       return unless cask.url.to_s =~ %r{github.com/([^/]+)/([^/]+)/releases/download/(\S+)}
 
-      add_warning "Cask uses GitHub releases, please add an appcast. See https://github.com/caskroom/homebrew-cask/blob/master/doc/cask_language_reference/stanzas/appcast.md"
+      add_warning "Cask uses GitHub releases, please add an appcast. See https://github.com/Homebrew/homebrew-cask/blob/master/doc/cask_language_reference/stanzas/appcast.md"
     end
 
     def check_url
@@ -251,9 +261,9 @@ module Hbc
     def check_download_url_format
       odebug "Auditing URL format"
       if bad_sourceforge_url?
-        add_warning "SourceForge URL format incorrect. See https://github.com/caskroom/homebrew-cask/blob/master/doc/cask_language_reference/stanzas/url.md#sourceforgeosdn-urls"
+        add_warning "SourceForge URL format incorrect. See https://github.com/Homebrew/homebrew-cask/blob/master/doc/cask_language_reference/stanzas/url.md#sourceforgeosdn-urls"
       elsif bad_osdn_url?
-        add_warning "OSDN URL format incorrect. See https://github.com/caskroom/homebrew-cask/blob/master/doc/cask_language_reference/stanzas/url.md#sourceforgeosdn-urls"
+        add_warning "OSDN URL format incorrect. See https://github.com/Homebrew/homebrew-cask/blob/master/doc/cask_language_reference/stanzas/url.md#sourceforgeosdn-urls"
       end
     end
 

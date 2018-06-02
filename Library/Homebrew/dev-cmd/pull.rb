@@ -86,8 +86,8 @@ module Homebrew
       switch "--warn-on-publish-failure"
       switch :verbose
       switch :debug
-      flag   "--bintray-org",   required: true
-      flag   "--test-bot-user", required: true
+      flag   "--bintray-org="
+      flag   "--test-bot-user="
     end
 
     if ARGV.named.empty?
@@ -100,6 +100,20 @@ module Homebrew
     end
     if ENV["HOMEBREW_GIT_EMAIL"]
       ENV["GIT_COMMITTER_EMAIL"] = ENV["HOMEBREW_GIT_EMAIL"]
+    end
+
+    # Depending on user configuration, git may try to invoke gpg.
+    if Utils.popen_read("git config --get --bool commit.gpgsign").chomp == "true"
+      begin
+        gnupg = Formula["gnupg"]
+      rescue FormulaUnavailableError # rubocop:disable Lint/HandleExceptions
+      else
+        if gnupg.installed?
+          path = PATH.new(ENV.fetch("PATH"))
+          path.prepend(gnupg.installed_prefix/"bin")
+          ENV["PATH"] = path
+        end
+      end
     end
 
     do_bump = @args.bump? && !@args.clean?

@@ -64,7 +64,7 @@ module Homebrew
         count = local_results.length + tap_results.length
 
         ohai "Searching blacklisted, migrated and deleted formulae..."
-        if reason = Homebrew::MissingFormula.reason(query, silent: true)
+        if reason = MissingFormula.reason(query, silent: true)
           if count.positive?
             puts
             puts "If you meant #{query.inspect} specifically:"
@@ -110,7 +110,7 @@ module Homebrew
 
     matches = begin
       GitHub.search_code(
-        user: ["Homebrew", "caskroom"],
+        user: "Homebrew",
         path: ["Formula", "HomebrewFormula", "Casks", "."],
         filename: query,
         extension: "rb",
@@ -122,7 +122,7 @@ module Homebrew
     matches.map do |match|
       filename = File.basename(match["path"], ".rb")
       tap = Tap.fetch(match["repository"]["full_name"])
-      next if tap.installed? && match["repository"]["owner"]["login"] != "caskroom"
+      next if tap.installed? && !(tap.user == "Homebrew" && tap.repo.start_with?("cask"))
       "#{tap.name}/#{filename}"
     end.compact
   end

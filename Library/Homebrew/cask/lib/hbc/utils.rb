@@ -2,18 +2,7 @@ require "yaml"
 require "open3"
 require "stringio"
 
-BUG_REPORTS_URL = "https://github.com/caskroom/homebrew-cask#reporting-bugs".freeze
-
-class Buffer < StringIO
-  extend Predicable
-
-  attr_predicate :tty?
-
-  def initialize(tty = false)
-    super()
-    @tty = tty
-  end
-end
+BUG_REPORTS_URL = "https://github.com/Homebrew/homebrew-cask#reporting-bugs".freeze
 
 # global methods
 

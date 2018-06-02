@@ -2,13 +2,15 @@ module Hardware
   class CPU
     INTEL_32BIT_ARCHS = [:i386].freeze
     INTEL_64BIT_ARCHS = [:x86_64].freeze
-    PPC_32BIT_ARCHS   = [:ppc, :ppc7400, :ppc7450, :ppc970].freeze
+    PPC_32BIT_ARCHS   = [:ppc, :ppc32, :ppc7400, :ppc7450, :ppc970].freeze
     PPC_64BIT_ARCHS   = [:ppc64].freeze
 
     class << self
       OPTIMIZATION_FLAGS = {
         core2: "-march=core2",
         core: "-march=prescott",
+        armv6: "-march=armv6",
+        armv8: "-march=armv8-a",
         dunno: "-march=native",
       }.freeze
 
@@ -118,9 +120,9 @@ module Hardware
         if is_32_bit?
           arch_32_bit == arch
         elsif intel?
-          [:i386, :x86_64].include? arch
+          (INTEL_32BIT_ARCHS + INTEL_64BIT_ARCHS).include?(arch)
         elsif ppc?
-          [:ppc, :ppc64].include? arch
+          (PPC_32BIT_ARCHS + PPC_64BIT_ARCHS).include?(arch)
         else
           false
         end
@@ -146,6 +148,12 @@ module Hardware
         :core2
       else
         :core
+      end
+    elsif Hardware::CPU.arm?
+      if Hardware::CPU.is_64_bit?
+        :armv8
+      else
+        :armv6
       end
     else
       Hardware::CPU.family
