@@ -584,6 +584,7 @@ module Homebrew
         elm-format 0.6.0-alpha
         ftgl 2.1.3-rc5
         hidapi 0.8.0-rc1
+        htop 3.0.0beta
         libcaca 0.99b19
         nethack4 4.3.0-beta2
         opensyobon 1.0rc2
