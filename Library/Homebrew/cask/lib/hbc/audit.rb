@@ -34,7 +34,7 @@ module Hbc
       check_single_pre_postflight
       check_single_uninstall_zap
       check_untrusted_pkg
-      check_github_releases_appcast
+      #check_github_releases_appcast
       check_latest_with_appcast
       check_stanza_requires_uninstall
       self
