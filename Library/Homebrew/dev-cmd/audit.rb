@@ -973,7 +973,7 @@ module Homebrew
 
       curl_openssl_or_deps = ResourceAuditor.curl_openssl_and_deps.include?(owner.name)
 
-      if spec_name == :stable && curl_openssl_or_deps
+      if spec_name == :stable && curl_openssl_or_deps && false
         problem "should not use xz tarballs" if url.end_with?(".xz")
 
         unless urls.find { |u| u.start_with?("http://") }
