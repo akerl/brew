@@ -50,18 +50,19 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
   * `cat` `formula`:
     Display the source to `formula`.
 
-  * `cleanup` [`--prune=``days`] [`--dry-run`] [`-s`] [`formulae`]:
-    For all installed or specific formulae, remove any older versions from the
-    cellar. In addition, old downloads from the Homebrew download-cache are deleted.
+  * `cleanup` [`--prune=``days`] [`--dry-run`] [`-s`] [<formula/cask> ...]:
+    Remove stale lock files and outdated downloads for formulae and casks,
+    and remove old versions of installed formulae. If arguments are specified,
+    only do this for the specified formulae and casks.
 
     If `--prune=``days` is specified, remove all cache files older than `days`.
 
     If `--dry-run` or `-n` is passed, show what would be removed, but do not
     actually remove anything.
 
-    If `-s` is passed, scrub the cache, removing downloads for even the latest
-    versions of formulae. Note downloads for any installed formulae will still not be
-    deleted. If you want to delete those too: `rm -rf $(brew --cache)`
+    If `-s` is passed, scrub the cache, including downloads for even the latest
+    versions. Note downloads for any installed formula or cask will still not
+    be deleted. If you want to delete those too: `rm -rf "$(brew --cache)"`
 
   * `command` `cmd`:
     Display the path to the file which is used when invoking `brew` `cmd`.
@@ -198,8 +199,11 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
   * `info`:
     Display brief statistics for your Homebrew installation.
 
-  * `info` `formula`:
-    Display information about `formula`.
+  * `info` `formula`  (`--verbose`):
+    Display information about `formula` and analytics data (provided neither
+    `HOMEBREW_NO_ANALYTICS` or `HOMEBREW_NO_GITHUB_API` are set)
+
+    Pass `--verbose` to see more detailed analytics data.
 
   * `info` `--github` `formula`:
     Open a browser to the GitHub History page for `formula`.
@@ -216,7 +220,7 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     See the docs for examples of using the JSON output:
     <https://docs.brew.sh/Querying-Brew>
 
-  * `install` [`--debug`] [`--env=`(`std`|`super`)] [`--ignore-dependencies`|`--only-dependencies`] [`--cc=``compiler`] [`--build-from-source`|`--force-bottle`] [`--include-test`] [`--devel`|`--HEAD`] [`--keep-tmp`] [`--build-bottle`] [`--force`] [`--verbose`] `formula` [`options` ...]:
+  * `install` [`--debug`] [`--env=`(`std`|`super`)] [`--ignore-dependencies`|`--only-dependencies`] [`--cc=``compiler`] [`--build-from-source`|`--force-bottle`] [`--include-test`] [`--devel`|`--HEAD`] [`--keep-tmp`] [`--build-bottle`] [`--force`] [`--verbose`] [`--display-times`] `formula` [`options` ...]:
     Install `formula`.
 
     `formula` is usually the name of the formula to install, but it can be specified
@@ -239,8 +243,12 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
 
     If `--cc=``compiler` is passed, attempt to compile using `compiler`.
     `compiler` should be the name of the compiler's executable, for instance
-    `gcc-4.2` for Apple's GCC 4.2, or `gcc-4.9` for a Homebrew-provided GCC
-    4.9.
+    `gcc-8` for gcc 8, `gcc-4.2` for Apple's GCC 4.2, or `gcc-4.9` for a
+    Homebrew-provided GCC 4.9. In order to use LLVM's clang, use
+    `llvm_clang`. To specify the Apple-provided clang, use `clang`. This
+    parameter will only accept compilers that are provided by Homebrew or
+    bundled with macOS. Please do not file issues if you encounter errors
+    while using this flag.
 
     If `--build-from-source` (or `-s`) is passed, compile the specified `formula` from
     source even if a bottle is provided. Dependencies will still be installed
@@ -273,6 +281,9 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
 
     If `--verbose` (or `-v`) is passed, print the verification and postinstall steps.
 
+    If `--display-times` is passed, install times for each formula are printed
+    at the end of the run.
+
     Installation options specific to `formula` may be appended to the command,
     and can be listed with `brew options` `formula`.
 
@@ -302,10 +313,10 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
 
     If `--force` (or `-f`) is passed, Homebrew will allow keg-only formulae to be linked.
 
-  * `list`, `ls` [`--full-name`]:
+  * `list`, `ls` [`--full-name`] [`-1`] [`-l`] [`-t`] [`-r`]:
     List all installed formulae. If `--full-name` is passed, print formulae
-    with fully-qualified names. If `--full-name` is not passed, any other
-    options (e.g. `-t`) are passed to `ls` which produces the actual output.
+    with fully-qualified names. If `--full-name` is not passed, other
+    options (i.e. `-1`, `-l`, `-t` and `-r`) are passed to `ls` which produces the actual output.
 
   * `list`, `ls` `--unbrewed`:
     List all files in the Homebrew prefix not installed by Homebrew.
@@ -396,20 +407,27 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
 
     If `--syntax` is passed, also syntax-check all of Homebrew's Ruby files.
 
-  * `reinstall` `formula`:
+  * `reinstall` [`--display-times`] `formula`:
     Uninstall and then install `formula` (with existing install options).
 
+    If `--display-times` is passed, install times for each formula are printed
+    at the end of the run.
+
   * `search`, `-S`:
-    Display all locally available formulae for brewing (including tapped ones).
-    No online search is performed if called without arguments.
+    Display all locally available formulae (including tapped ones).
+    No online search is performed.
+
+  * `search` `--casks`
+    Display all locally available casks (including tapped ones).
+    No online search is performed.
 
   * `search` [`--desc`] (`text`|`/``text``/`):
-    Perform a substring search of formula names for `text`. If `text` is
-    surrounded with slashes, then it is interpreted as a regular expression.
-    The search for `text` is extended online to some popular taps.
+    Perform a substring search of cask tokens and formula names for `text`. If `text`
+    is surrounded with slashes, then it is interpreted as a regular expression.
+    The search for `text` is extended online to official taps.
 
-    If `--desc` is passed, browse available packages matching `text` including a
-    description for each.
+    If `--desc` is passed, search formulae with a description matching `text` and
+    casks with a name matching `text`.
 
   * `search` (`--debian`|`--fedora`|`--fink`|`--macports`|`--opensuse`|`--ubuntu`) `text`:
     Search for `text` in the given package manager's list.
@@ -422,6 +440,16 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     which otherwise build systems would not find.
 
     If `--env=std` is passed, use the standard `PATH` instead of superenv's.
+
+  * `shellenv`:
+    Prints export statements - run them in a shell and this installation of
+    Homebrew will be included into your PATH, MANPATH, and INFOPATH.
+
+    HOMEBREW_PREFIX, HOMEBREW_CELLAR and HOMEBREW_REPOSITORY are also exported
+    to save multiple queries of those variables.
+
+    Consider adding evaluating the output in your dotfiles (e.g. `~/.profile`)
+    with `eval $(brew shellenv)`
 
   * `style` [`--fix`] [`--display-cop-names`] [`--only-cops=``cops`|`--except-cops=``cops`] [`files`|`taps`|`formulae`]:
     Check formulae or files for conformance to Homebrew style guidelines.
@@ -555,13 +583,13 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     their latest `origin/master`. Note this will destroy all your uncommitted
     or committed changes.
 
-  * `upgrade` [`install-options`] [`--cleanup`] [`--fetch-HEAD`] [`--ignore-pinned`] [`formulae`]:
+  * `upgrade` [`install-options`] [`--cleanup`] [`--fetch-HEAD`] [`--ignore-pinned`] [`--display-times`] [`formulae`]:
     Upgrade outdated, unpinned brews (with existing install options).
 
     Options for the `install` command are also valid here.
 
     If `--cleanup` is specified or `HOMEBREW_UPGRADE_CLEANUP` is set then remove
-    previously installed `formula` version(s).
+    previously installed version(s) of upgraded `formulae`.
 
     If `--fetch-HEAD` is passed, fetch the upstream repository to detect if
     the HEAD installation of the formula is outdated. Otherwise, the
@@ -570,6 +598,9 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
 
     If `--ignore-pinned` is passed, set a 0 exit code even if pinned formulae
     are not upgraded.
+
+    If `--display-times` is passed, install times for each formula are printed
+    at the end of the run.
 
     If `formulae` are given, upgrade only the specified brews (unless they
     are pinned; see `pin`, `unpin`).
@@ -597,7 +628,7 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
   * `--cache`:
     Display Homebrew's download cache. See also `HOMEBREW_CACHE`.
 
-  * `--cache` `formula`:
+  * `--cache` [`--build-from-source`|`-s`] [`--force-bottle`] `formula`:
     Display the file or directory used to cache `formula`.
 
   * `--cellar`:
@@ -618,7 +649,7 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     the list is formatted for export to `bash`(1) unless `--plain` is passed.
 
   * `--prefix`:
-    Display Homebrew's install path. *Default:* `/usr/local`
+    Display Homebrew's install path. *Default:* `/usr/local` on macOS and `/home/linuxbrew/.linuxbrew` on Linux
 
   * `--prefix` `formula`:
     Display the location in the cellar where `formula` is or would be installed.
@@ -670,7 +701,7 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     `audit` exits with a non-zero status if any errors are found. This is useful,
     for instance, for implementing pre-commit hooks.
 
-  * `bottle` [`--verbose`] [`--no-rebuild`|`--keep-old`] [`--skip-relocation`] [`--or-later`] [`--root-url=``URL`] [`--force-core-tap`] `formulae`:
+  * `bottle` [`--verbose`] [`--no-rebuild`|`--keep-old`] [`--skip-relocation`] [`--or-later`] [`--root-url=``URL`] [`--force-core-tap`] [`--json`] `formulae`:
     Generate a bottle (binary package) from a formula installed with
     `--build-bottle`.
 
@@ -692,9 +723,12 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     If `--force-core-tap` is passed, build a bottle even if `formula` is not
     in halyard/core or any installed taps.
 
-  * `bottle` `--merge` [`--keep-old`] [`--write` [`--no-commit`]] `formulae`:
-    Generate a bottle from a formula and print the new DSL merged into the
-    existing formula.
+    If `--json` is passed, write bottle information to a JSON file, which can
+    be used as the argument for `--merge`.
+
+  * `bottle` `--merge` [`--keep-old`] [`--write` [`--no-commit`]] `bottle_json_files`:
+    Generate a bottle from a `--json` output file and print the new DSL merged
+    into the existing formula.
 
     If `--write` is passed, write the changes to the formula file. A new
     commit will then be generated unless `--no-commit` is passed.
@@ -769,6 +803,18 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
   * `edit` `formula`:
     Open `formula` in the editor.
 
+  * `extract` [`--force`] `formula` `tap` [`--version=``version`]:
+    Looks through repository history to find the `version` of `formula` and
+    creates a copy in `tap`/Formula/`formula`@`version`.rb. If the tap is
+    not installed yet, attempts to install/clone the tap before continuing.
+
+    If `--force` is passed, the file at the destination will be overwritten
+    if it already exists. Otherwise, existing files will be preserved.
+
+    If an argument is passed through `--version`, `version` of `formula`
+    will be extracted and placed in the destination tap. Otherwise, the most
+    recent version that can be found will be used.
+
   * `formula` `formula`:
     Display the path where `formula` is located.
 
@@ -779,8 +825,8 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     If `--pry` is passed or HOMEBREW_PRY is set, pry will be
     used instead of irb.
 
-  * `linkage` [`--test`] [`--reverse`] [`--cached`] `formula`:
-    Checks the library links of an installed formula.
+  * `linkage` [`--test`] [`--reverse`] [`formulae`]:
+    Checks the library links of installed formulae.
 
     Only works on installed formulae. An error is raised if it is run on
     uninstalled formulae.
@@ -791,8 +837,7 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     If `--reverse` is passed, print the dylib followed by the binaries
     which link to it for each library the keg references.
 
-    If `--cached` is passed, print the cached linkage values stored in
-    HOMEBREW_CACHE, set from a previous `brew linkage` run
+    If `formulae` are given, check linkage for only the specified brews.
 
   * `man` [`--fail-if-changed`]:
     Generate Homebrew's manpages.
@@ -947,9 +992,9 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
 
   
 
-      `brew bundle check` [`--no-upgrade`] [`--file`=`path`|`--global`]
+      `brew bundle check` [`--no-upgrade`] [`--file`=`path`|`--global`] [`--verbose`]
 
-      Check if all dependencies are installed in a Brewfile.
+      Check if all dependencies are installed in a Brewfile. Missing dependencies are listed in verbose mode. `check` will exit on the first category missing a dependency unless in verbose mode.
 
   
 
@@ -978,6 +1023,10 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
   
 
       If `--force` is passed, uninstall dependencies or overwrite an existing Brewfile.
+
+  
+
+      If `--zap` is passed, casks will be removed using the `zap` command instead of `uninstall`.
 
   
 
@@ -1088,7 +1137,10 @@ can take several different forms:
 Note that environment variables must have a value set to be detected. For example, `export HOMEBREW_NO_INSECURE_REDIRECT=1` rather than just `export HOMEBREW_NO_INSECURE_REDIRECT`.
 
   * `HOMEBREW_ARTIFACT_DOMAIN`:
-    If set, instructs Homebrew to use the given URL as a download mirror for bottles and binaries.
+    If set, instructs Homebrew to prefix all download URLs, including those
+    for bottles, with this variable. For example, a formula with a URL of
+    `https://example.com/foo.tar.gz` but `HOMEBREW_ARTIFACT_DOMAIN=http://localhost:8080`
+    would instead download from `http://localhost:8080/example.com/foo.tar.gz`.
 
   * `HOMEBREW_AUTO_UPDATE_SECS`:
     If set, Homebrew will only check for autoupdates once per this seconds interval.
@@ -1099,12 +1151,15 @@ Note that environment variables must have a value set to be detected. For exampl
     When using the `S3` download strategy, Homebrew will look in
     these variables for access credentials (see
     <https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-environment>
-    to retrieve these access credentials from AWS).  If they are not set,
+    to retrieve these access credentials from AWS). If they are not set,
     the `S3` download strategy will download with a public
     (unsigned) URL.
 
   * `HOMEBREW_BOTTLE_DOMAIN`:
-    If set, instructs Homebrew to use the given URL as a download mirror for bottles.
+    By default, Homebrew uses `https://homebrew.bintray.com/` as its download
+    mirror for bottles. If set, instructs Homebrew to instead use the given
+    URL. For example, `HOMEBREW_BOTTLE_DOMAIN=http://localhost:8080` will
+    cause all bottles to download from the prefix `http://localhost:8080/`.
 
   * `HOMEBREW_BROWSER`:
     If set, uses this setting as the browser when opening project homepages,
@@ -1166,6 +1221,10 @@ Note that environment variables must have a value set to be detected. For exampl
     a Homebrew-built Git if installed, or the system-provided binary.
 
     Set this to force Homebrew to use a particular git binary.
+
+  * `HOMEBREW_FORCE_BREWED_GIT`:
+    If set, Homebrew will use a Homebrew-installed `git` rather than the
+    system version.
 
   * `HOMEBREW_GITHUB_API_TOKEN`:
     A personal access token for the GitHub API, which you can create at
@@ -1284,13 +1343,15 @@ Homebrew Documentation: <https://docs.brew.sh>
 
 Homebrew's lead maintainer is Mike McQuaid.
 
-halyard/homebrew-core's lead maintainer is ilovezfs.
+Homebrew's project leadership committee is Mike McQuaid, JCount, Misty De Meo and Markus Reiter.
 
-Homebrew/brew's other current maintainers are ilovezfs, JCount, Misty De Meo, Gautham Goli, Markus Reiter and William Woodruff.
+Homebrew/brew's other current maintainers are Claudia, Michka Popoff, Shaun Jackman, Chongyu Zhu, commitay, Vitor Galvao, JCount, Misty De Meo, Gautham Goli, Markus Reiter, Steven Peters, Jonathan Chang and William Woodruff.
 
-Homebrew/homebrew-core's other current maintainers are FX Coudert, JCount, Misty De Meo and Tom Schoonjans.
+Homebrew/brew's Linux support (and Linuxbrew) maintainers are Michka Popoff and Shaun Jackman.
 
-Former maintainers with significant contributions include Tim Smith, Baptiste Fontaine, Xu Cheng, Martin Afanasjew, Dominyk Tiller, Brett Koonce, Charlie Sharpsteen, Jack Nagel, Adam Vandenberg, Andrew Janke, Alex Dunn, neutric, Tomasz Pajor, Uladzislau Shablinski, Alyssa Ross,  and Homebrew's creator: Max Howell.
+Homebrew/homebrew-core's other current maintainers are Claudia, Michka Popoff, Shaun Jackman, Chongyu Zhu, commitay, Izaak Beekman, Sean Molenaar, Jan Viljanen, Viktor Szakats, FX Coudert, Steven Peters, JCount, Misty De Meo and Tom Schoonjans.
+
+Former maintainers with significant contributions include Dominyk Tiller, Tim Smith, Baptiste Fontaine, Xu Cheng, Martin Afanasjew,  Brett Koonce, Charlie Sharpsteen, Jack Nagel, Adam Vandenberg, Andrew Janke, Alex Dunn, neutric, Tomasz Pajor, Uladzislau Shablinski, Alyssa Ross, ilovezfs and Homebrew's creator: Max Howell.
 
 ## BUGS
 

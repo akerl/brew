@@ -1,4 +1,4 @@
-require_relative "./extend/formula_cop"
+require "rubocops/extend/formula_cop"
 
 module RuboCop
   module Cop
@@ -13,14 +13,16 @@ module RuboCop
           [:devel, :head, :stable].each do |block_name|
             block = find_block(body_node, block_name)
             next unless block
+
             check_dependency_nodes_order(block.body)
           end
         end
 
         def check_dependency_nodes_order(parent_node)
           return if parent_node.nil?
+
           dependency_nodes = fetch_depends_on_nodes(parent_node)
-          ordered = dependency_nodes.sort { |a, b| sort_by_dependency_name(a, b) }
+          ordered = dependency_nodes.sort_by { |node| dependency_name(node).downcase }
           ordered = sort_dependencies_by_type(ordered)
           sort_conditional_dependencies!(ordered)
           verify_order_in_source(ordered)
@@ -29,18 +31,6 @@ module RuboCop
         # Match all `depends_on` nodes among childnodes of given parent node
         def fetch_depends_on_nodes(parent_node)
           parent_node.each_child_node.select { |x| depends_on_node?(x) }
-        end
-
-        def sort_by_dependency_name(a, b)
-          a_name = dependency_name(a)
-          b_name = dependency_name(b)
-          if a_name < b_name
-            -1
-          elsif a_name > b_name
-            1
-          else
-            0
-          end
         end
 
         # Separate dependencies according to precedence order:
@@ -70,11 +60,12 @@ module RuboCop
             ordered.each_with_index do |dep, pos|
               idx = pos+1
               match_nodes = build_with_dependency_name(dep)
-              idx1 = pos if match_nodes && !match_nodes.empty?
-              next unless idx1
-              idx2 = nil
+              next if !match_nodes || match_nodes.empty?
+
+              idx1 = pos
               ordered.drop(idx1+1).each_with_index do |dep2, pos2|
                 next unless match_nodes.index(dependency_name(dep2))
+
                 idx2 = pos2 if idx2.nil? || pos2 > idx2
               end
               break if idx2
@@ -95,6 +86,7 @@ module RuboCop
               dependency_node_2 = node2 if l2 < l1
             end
             next unless dependency_node_2
+
             @offensive_nodes = [dependency_node_1, dependency_node_2]
             component_problem dependency_node_1, dependency_node_2
           end
@@ -119,8 +111,8 @@ module RuboCop
 
         # Node pattern method to extract `name` in `depends_on :name`
         def_node_search :dependency_name_node, <<~EOS
-          {(send nil? :depends_on {(hash (pair $_ _)) $({str sym} _)})
-           (if _ (send nil? :depends_on {(hash (pair $_ _)) $({str sym} _)}) nil?)}
+          {(send nil? :depends_on {(hash (pair $_ _)) $({str sym} _) $(const nil? _)})
+           (if _ (send nil? :depends_on {(hash (pair $_ _)) $({str sym} _) $(const nil? _)}) nil?)}
         EOS
 
         # Node pattern method to extract `name` in `build.with? :name`
@@ -155,7 +147,9 @@ module RuboCop
 
         def component_problem(c1, c2)
           offending_node(c1)
-          problem "dependency \"#{dependency_name(c1)}\" (line #{line_number(c1)}) should be put before dependency \"#{dependency_name(c2)}\" (line #{line_number(c2)})"
+          problem "dependency \"#{dependency_name(c1)}\" " \
+                  "(line #{line_number(c1)}) should be put before dependency "\
+                  "\"#{dependency_name(c2)}\" (line #{line_number(c2)})"
         end
 
         # Reorder two nodes in the source, using the corrector instance in autocorrect method

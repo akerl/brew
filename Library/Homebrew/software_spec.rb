@@ -7,6 +7,7 @@ require "dependency_collector"
 require "utils/bottles"
 require "patch"
 require "compilers"
+require "global"
 require "os/mac/version"
 
 class SoftwareSpec
@@ -25,7 +26,7 @@ class SoftwareSpec
   attr_reader :compiler_failures
 
   def_delegators :@resource, :stage, :fetch, :verify_download_integrity, :source_modified_time
-  def_delegators :@resource, :cached_download, :clear_cache
+  def_delegators :@resource, :download_name, :cached_download, :clear_cache
   def_delegators :@resource, :checksum, :mirrors, :specs, :using
   def_delegators :@resource, :version, :mirror, *Checksum::TYPES
   def_delegators :@resource, :downloader
@@ -70,12 +71,14 @@ class SoftwareSpec
 
   def url(val = nil, specs = {})
     return @resource.url if val.nil?
+
     @resource.url(val, specs)
     dependency_collector.add(@resource)
   end
 
   def bottle_unneeded?
     return false unless @bottle_disable_reason
+
     @bottle_disable_reason.unneeded?
   end
 
@@ -109,6 +112,7 @@ class SoftwareSpec
   def resource(name, klass = Resource, &block)
     if block_given?
       raise DuplicateResourceError, name if resource_defined?(name)
+
       res = klass.new(name, &block)
       resources[name] = res
       dependency_collector.add(res)
@@ -137,6 +141,7 @@ class SoftwareSpec
       raise ArgumentError, "option name is required" if name.empty?
       raise ArgumentError, "option name must be longer than one character: #{name}" unless name.length > 1
       raise ArgumentError, "option name must not start with dashes: #{name}" if name.start_with?("-")
+
       Option.new(name, description)
     end
     options << opt
@@ -144,6 +149,7 @@ class SoftwareSpec
 
   def deprecated_option(hash)
     raise ArgumentError, "deprecated_option hash must not be empty" if hash.empty?
+
     hash.each do |old_options, new_options|
       Array(old_options).each do |old_option|
         Array(new_options).each do |new_option|
@@ -153,6 +159,7 @@ class SoftwareSpec
           old_flag = deprecated_option.old_flag
           new_flag = deprecated_option.current_flag
           next unless @flags.include? old_flag
+
           @flags -= [old_flag]
           @flags |= [new_flag]
           @deprecated_flags << deprecated_option
@@ -252,24 +259,28 @@ class Bottle
     end
 
     def initialize(name, version, tag, rebuild)
-      @name = name
+      @name = File.basename name
       @version = version
       @tag = tag.to_s.gsub(/_or_later$/, "")
       @rebuild = rebuild
     end
 
     def to_s
-      prefix + suffix
+      "#{name}--#{version}#{extname}"
     end
     alias to_str to_s
 
-    def prefix
-      "#{name}-#{version}.#{tag}"
+    def json
+      "#{name}--#{version}.#{tag}.bottle.json"
     end
 
-    def suffix
+    def bintray
+      "#{name}-#{version}#{extname}"
+    end
+
+    def extname
       s = rebuild.positive? ? ".#{rebuild}" : ""
-      ".bottle#{s}.tar.gz"
+      ".#{tag}.bottle#{s}.tar.gz"
     end
   end
 
@@ -290,7 +301,7 @@ class Bottle
     checksum, tag = spec.checksum_for(Utils::Bottles.tag)
 
     filename = Filename.create(formula, tag, spec.rebuild)
-    @resource.url(build_url(spec.root_url, filename),
+    @resource.url("#{spec.root_url}/#{filename.bintray}",
                   select_download_strategy(spec.root_url_specs))
     @resource.version = formula.pkg_version
     @resource.checksum = checksum
@@ -314,10 +325,6 @@ class Bottle
 
   private
 
-  def build_url(root_url, filename)
-    "#{root_url}/#{filename}"
-  end
-
   def select_download_strategy(specs)
     specs[:using] ||= DownloadStrategyDetector.detect(@spec.root_url)
     specs
@@ -325,9 +332,7 @@ class Bottle
 end
 
 class BottleSpecification
-  DEFAULT_PREFIX = "/usr/local".freeze
-  DEFAULT_CELLAR = "/usr/local/Cellar".freeze
-  DEFAULT_DOMAIN = (ENV["HOMEBREW_BOTTLE_DOMAIN"] || "https://homebrew.bintray.com").freeze
+  DEFAULT_PREFIX = Homebrew::DEFAULT_PREFIX
 
   attr_rw :prefix, :cellar, :rebuild
   attr_accessor :tap
@@ -335,15 +340,15 @@ class BottleSpecification
 
   def initialize
     @rebuild = 0
-    @prefix = DEFAULT_PREFIX
-    @cellar = DEFAULT_CELLAR
+    @prefix = Homebrew::DEFAULT_PREFIX
+    @cellar = Homebrew::DEFAULT_CELLAR
     @collector = Utils::Bottles::Collector.new
     @root_url_specs = {}
   end
 
   def root_url(var = nil, specs = {})
     if var.nil?
-      @root_url ||= "#{DEFAULT_DOMAIN}/#{Utils::Bottles::Bintray.repository(tap)}"
+      @root_url ||= "#{HOMEBREW_BOTTLE_DOMAIN}/#{Utils::Bottles::Bintray.repository(tap)}"
     else
       @root_url = var
       @root_url_specs.merge!(specs)
@@ -408,3 +413,5 @@ class PourBottleCheck
     @formula.send(:define_method, :pour_bottle?, &block)
   end
 end
+
+require "extend/os/software_spec"

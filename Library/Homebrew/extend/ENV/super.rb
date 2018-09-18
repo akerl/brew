@@ -15,12 +15,13 @@ module Superenv
   include SharedEnvExtension
 
   # @private
-  attr_accessor :keg_only_deps, :deps
+  attr_accessor :keg_only_deps, :deps, :run_time_deps
   attr_accessor :x11
 
   def self.extended(base)
     base.keg_only_deps = []
     base.deps = []
+    base.run_time_deps = []
   end
 
   # @private
@@ -178,16 +179,6 @@ module Superenv
       keg_only_deps.map(&:opt_lib),
       HOMEBREW_PREFIX/"lib",
     ]
-
-    if compiler == :llvm_clang
-      if MacOS::CLT.installed?
-        paths << "/usr/lib"
-      else
-        paths << "#{MacOS.sdk_path}/usr/lib"
-      end
-      paths << Formula["llvm"].opt_lib.to_s
-    end
-
     paths += homebrew_extra_library_paths
     PATH.new(paths).existing
   end
@@ -285,8 +276,9 @@ module Superenv
     self["HOMEBREW_ARCHFLAGS"] = Hardware::CPU.universal_archs.as_arch_flags
 
     # GCC doesn't accept "-march" for a 32-bit CPU with "-arch x86_64"
-    return if compiler == :clang
+    return if compiler_any_clang?
     return unless Hardware::CPU.is_32_bit?
+
     self["HOMEBREW_OPTFLAGS"] = self["HOMEBREW_OPTFLAGS"].sub(
       /-march=\S*/,
       "-Xarch_#{Hardware::CPU.arch_32_bit} \\0",
@@ -294,7 +286,7 @@ module Superenv
   end
 
   def permit_arch_flags
-    append "HOMEBREW_CCCFG", "K"
+    append_to_cccfg "K"
   end
 
   def m32
@@ -307,26 +299,26 @@ module Superenv
 
   def cxx11
     if homebrew_cc == "clang"
-      append "HOMEBREW_CCCFG", "x", ""
-      append "HOMEBREW_CCCFG", "g", ""
-    elsif gcc_with_cxx11_support?(homebrew_cc)
-      append "HOMEBREW_CCCFG", "x", ""
+      append_to_cccfg "x"
+      append_to_cccfg "g"
+    elsif compiler_with_cxx11_support?(homebrew_cc)
+      append_to_cccfg "x"
     else
       raise "The selected compiler doesn't support C++11: #{homebrew_cc}"
     end
   end
 
   def libcxx
-    append "HOMEBREW_CCCFG", "g", "" if compiler == :clang
+    append_to_cccfg "g" if compiler == :clang
   end
 
   def libstdcxx
-    append "HOMEBREW_CCCFG", "h", "" if compiler == :clang
+    append_to_cccfg "h" if compiler == :clang
   end
 
   # @private
   def refurbish_args
-    append "HOMEBREW_CCCFG", "O", ""
+    append_to_cccfg "O"
   end
 
   %w[O3 O2 O1 O0 Os].each do |opt|

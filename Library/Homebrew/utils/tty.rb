@@ -6,10 +6,12 @@ module Tty
   end
 
   def width
-    width = `/bin/stty size 2>/dev/null`.split[1]
-    width ||= `/usr/bin/tput cols 2>/dev/null`.split[0]
-    width ||= 80
-    width.to_i
+    @width ||= begin
+      width = `/bin/stty size 2>/dev/null`.split[1]
+      width = `/usr/bin/tput cols 2>/dev/null`.split[0] if width.to_i.zero?
+      width ||= 80
+      width.to_i
+    end
   end
 
   def truncate(string)
@@ -45,6 +47,7 @@ module Tty
 
   def current_escape_sequence
     return "" if @escape_sequence.nil?
+
     "\033[#{@escape_sequence.join(";")}m"
   end
 
@@ -59,9 +62,10 @@ module Tty
   end
 
   def to_s
-    if ENV["HOMEBREW_NO_COLOR"] || !$stdout.tty?
+    if !ENV["HOMEBREW_COLOR"] && (ENV["HOMEBREW_NO_COLOR"] || !$stdout.tty?)
       return ""
     end
+
     current_escape_sequence
   ensure
     reset_escape_sequence!

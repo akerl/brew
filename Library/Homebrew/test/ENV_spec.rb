@@ -116,11 +116,11 @@ shared_examples EnvActivation do
 
   describe "#prepend_path" do
     it "prepends to a path" do
-      subject.prepend_path "FOO", "/usr/libexec"
-      expect(subject["FOO"]).to eq("/usr/libexec")
+      subject.prepend_path "FOO", "/usr/local"
+      expect(subject["FOO"]).to eq("/usr/local")
 
       subject.prepend_path "FOO", "/usr"
-      expect(subject["FOO"]).to eq("/usr#{File::PATH_SEPARATOR}/usr/libexec")
+      expect(subject["FOO"]).to eq("/usr#{File::PATH_SEPARATOR}/usr/local")
     end
   end
 
@@ -154,6 +154,18 @@ shared_examples EnvActivation do
       subject["FOO"] = "bar"
       subject.clear_sensitive_environment!
       expect(subject["FOO"]).to eq "bar"
+    end
+  end
+
+  describe "#compiler_any_clang?" do
+    it "returns true for llvm_clang" do
+      expect(subject.compiler_any_clang?(:llvm_clang)).to be true
+    end
+  end
+
+  describe "#compiler_with_cxx11_support?" do
+    it "returns true for gcc-4.9" do
+      expect(subject.compiler_with_cxx11_support?("gcc-4.9")).to be true
     end
   end
 end

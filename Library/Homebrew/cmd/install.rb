@@ -1,4 +1,4 @@
-#:  * `install` [`--debug`] [`--env=`(`std`|`super`)] [`--ignore-dependencies`|`--only-dependencies`] [`--cc=`<compiler>] [`--build-from-source`|`--force-bottle`] [`--include-test`] [`--devel`|`--HEAD`] [`--keep-tmp`] [`--build-bottle`] [`--force`] [`--verbose`] <formula> [<options> ...]:
+#:  * `install` [`--debug`] [`--env=`(`std`|`super`)] [`--ignore-dependencies`|`--only-dependencies`] [`--cc=`<compiler>] [`--build-from-source`|`--force-bottle`] [`--include-test`] [`--devel`|`--HEAD`] [`--keep-tmp`] [`--build-bottle`] [`--force`] [`--verbose`] [`--display-times`] <formula> [<options> ...]:
 #:    Install <formula>.
 #:
 #:    <formula> is usually the name of the formula to install, but it can be specified
@@ -21,8 +21,12 @@
 #:
 #:    If `--cc=`<compiler> is passed, attempt to compile using <compiler>.
 #:    <compiler> should be the name of the compiler's executable, for instance
-#:    `gcc-4.2` for Apple's GCC 4.2, or `gcc-4.9` for a Homebrew-provided GCC
-#:    4.9.
+#:    `gcc-8` for gcc 8, `gcc-4.2` for Apple's GCC 4.2, or `gcc-4.9` for a
+#:    Homebrew-provided GCC 4.9. In order to use LLVM's clang, use
+#:    `llvm_clang`. To specify the Apple-provided clang, use `clang`. This
+#:    parameter will only accept compilers that are provided by Homebrew or
+#:    bundled with macOS. Please do not file issues if you encounter errors
+#:    while using this flag.
 #:
 #:    If `--build-from-source` (or `-s`) is passed, compile the specified <formula> from
 #:    source even if a bottle is provided. Dependencies will still be installed
@@ -55,6 +59,9 @@
 #:
 #:    If `--verbose` (or `-v`) is passed, print the verification and postinstall steps.
 #:
+#:    If `--display-times` is passed, install times for each formula are printed
+#:    at the end of the run.
+#:
 #:    Installation options specific to <formula> may be appended to the command,
 #:    and can be listed with `brew options` <formula>.
 #:
@@ -68,14 +75,15 @@
 #:    creating patches to the software.
 
 require "missing_formula"
-require "diagnostic"
-require "cmd/search"
 require "formula_installer"
-require "hardware"
 require "development_tools"
+require "install"
+require "search"
 
 module Homebrew
   module_function
+
+  extend Search
 
   def install
     raise FormulaUnspecifiedError if ARGV.named.empty?
@@ -90,6 +98,7 @@ module Homebrew
         if name !~ HOMEBREW_TAP_FORMULA_REGEX && name !~ HOMEBREW_CASK_TAP_CASK_REGEX
           next
         end
+
         tap = Tap.fetch(Regexp.last_match(1), Regexp.last_match(2))
         tap.install unless tap.installed?
       end
@@ -229,6 +238,7 @@ module Homebrew
         # Even if we don't install this formula mark it as no longer just
         # installed as a dependency.
         next unless f.opt_prefix.directory?
+
         keg = Keg.new(f.opt_prefix.resolved_path)
         tab = Tab.for_keg(keg)
         unless tab.installed_on_request
@@ -238,12 +248,14 @@ module Homebrew
       end
 
       return if formulae.empty?
-      perform_preinstall_checks
+
+      Install.perform_preinstall_checks
 
       formulae.each do |f|
         Migrator.migrate_if_needed(f)
         install_formula(f)
       end
+      Homebrew.messages.display_messages
     rescue FormulaUnreadableError, FormulaClassUnavailableError,
            TapFormulaUnreadableError, TapFormulaClassUnavailableError => e
       # Need to rescue before `FormulaUnavailableError` (superclass of this)
@@ -262,10 +274,8 @@ module Homebrew
         return
       end
 
-      regex = query_regexp(e.name)
-
       ohai "Searching for similarly named formulae..."
-      formulae_search_results = search_formulae(regex)
+      formulae_search_results = search_formulae(e.name)
       case formulae_search_results.length
       when 0
         ofail "No similarly named formulae found."
@@ -281,8 +291,9 @@ module Homebrew
 
       # Do not search taps if the formula name is qualified
       return if e.name.include?("/")
+
       ohai "Searching taps..."
-      taps_search_results = search_taps(e.name)
+      taps_search_results = search_taps(e.name)[:formulae]
       case taps_search_results.length
       when 0
         ofail "No formulae found in taps."
@@ -296,47 +307,6 @@ module Homebrew
         puts "To install one of them, run (for example):\n  brew install #{taps_search_results.first}"
       end
     end
-  end
-
-  def check_ppc
-    case Hardware::CPU.type
-    when :ppc
-      abort <<~EOS
-        Sorry, Homebrew does not support your computer's CPU architecture.
-        For PPC support, see: https://github.com/mistydemeo/tigerbrew
-      EOS
-    end
-  end
-
-  def check_writable_install_location
-    raise "Cannot write to #{HOMEBREW_CELLAR}" if HOMEBREW_CELLAR.exist? && !HOMEBREW_CELLAR.writable_real?
-    raise "Cannot write to #{HOMEBREW_PREFIX}" unless HOMEBREW_PREFIX.writable_real? || HOMEBREW_PREFIX.to_s == "/usr/local"
-  end
-
-  def check_development_tools
-    checks = Diagnostic::Checks.new
-    checks.fatal_development_tools_checks.each do |check|
-      out = checks.send(check)
-      next if out.nil?
-      ofail out
-    end
-    exit 1 if Homebrew.failed?
-  end
-
-  def check_cellar
-    FileUtils.mkdir_p HOMEBREW_CELLAR unless File.exist? HOMEBREW_CELLAR
-  rescue
-    raise <<~EOS
-      Could not create #{HOMEBREW_CELLAR}
-      Check you have permission to write to #{HOMEBREW_CELLAR.parent}
-    EOS
-  end
-
-  def perform_preinstall_checks
-    check_ppc
-    check_writable_install_location
-    check_development_tools if DevelopmentTools.installed?
-    check_cellar
   end
 
   def install_formula(f)

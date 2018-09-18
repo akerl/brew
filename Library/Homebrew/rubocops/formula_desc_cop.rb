@@ -1,5 +1,5 @@
-require_relative "./extend/formula_cop"
-require_relative "../extend/string"
+require "rubocops/extend/formula_cop"
+require "extend/string"
 
 module RuboCop
   module Cop
@@ -29,6 +29,7 @@ module RuboCop
           desc_length = "#{@formula_name}: #{string_content(desc)}".length
           max_desc_length = 80
           return if desc_length <= max_desc_length
+
           problem "Description is too long. \"name: desc\" should be less than #{max_desc_length} characters. " \
                   "Length is calculated as #{@formula_name} + desc. (currently #{desc_length})"
         end
@@ -38,6 +39,7 @@ module RuboCop
     module FormulaAuditStrict
       # This cop audits `desc` in Formulae
       #
+      # - Checks for leading/trailing whitespace in `desc`
       # - Checks if `desc` begins with an article
       # - Checks for correct usage of `command-line` in `desc`
       # - Checks description starts with a capital letter
@@ -61,6 +63,16 @@ module RuboCop
           return if desc_call.nil?
 
           desc = parameters(desc_call).first
+
+          # Check for leading whitespace.
+          if regex_match_group(desc, /^\s+/)
+            problem "Description shouldn't have a leading space"
+          end
+
+          # Check for trailing whitespace.
+          if regex_match_group(desc, /\s+$/)
+            problem "Description shouldn't have a trailing space"
+          end
 
           # Check if command-line is wrongly used in formula's desc
           if match = regex_match_group(desc, /(command ?line)/i)
@@ -87,6 +99,7 @@ module RuboCop
 
           # Check if a full stop is used at the end of a formula's desc (apart from in the case of "etc.")
           return unless regex_match_group(desc, /\.$/) && !string_content(desc).end_with?("etc.")
+
           problem "Description shouldn't end with a full stop"
         end
 
@@ -104,6 +117,8 @@ module RuboCop
             correction.gsub!(/^(['"]?)\s+/, "\\1")
             correction.gsub!(/\s+(['"]?)$/, "\\1")
             correction.gsub!(/\.(['"]?)$/, "\\1")
+            correction.gsub!(/^\s+/, "")
+            correction.gsub!(/\s+$/, "")
             corrector.insert_before(node.source_range, correction)
             corrector.remove(node.source_range)
           end

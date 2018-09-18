@@ -10,6 +10,8 @@ class Dependency
   DEFAULT_ENV_PROC = proc {}
 
   def initialize(name, tags = [], env_proc = DEFAULT_ENV_PROC, option_names = [name])
+    raise ArgumentError, "Dependency must have a name!" unless name
+
     @name = name
     @tags = tags
     @env_proc = env_proc
@@ -91,11 +93,13 @@ class Dependency
           next
         when :skip
           next if @expand_stack.include? dep.name
+
           expanded_deps.concat(expand(dep.to_formula, &block))
         when :keep_but_prune_recursive_deps
           expanded_deps << dep
         else
           next if @expand_stack.include? dep.name
+
           expanded_deps.concat(expand(dep.to_formula, &block))
           expanded_deps << dep
         end
@@ -165,6 +169,7 @@ class Dependency
     def merge_temporality(deps)
       # Means both build and runtime dependency.
       return [] unless deps.all?(&:build?)
+
       [:build]
     end
   end

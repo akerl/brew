@@ -1,4 +1,3 @@
-
 describe "globally-scoped helper methods" do
   let(:dir) { mktmpdir }
 
@@ -32,8 +31,6 @@ describe "globally-scoped helper methods" do
       before { allow($stdout).to receive(:tty?).and_return(true) }
 
       context "with HOMEBREW_NO_EMOJI unset" do
-        before { ENV.delete("HOMEBREW_NO_EMOJI") }
-
         it "returns a string with a colored checkmark" do
           expect(subject)
             .to match(/#{esc 1}foo #{esc 32}✔#{esc 0}/)
@@ -66,8 +63,6 @@ describe "globally-scoped helper methods" do
       before { allow($stdout).to receive(:tty?).and_return(true) }
 
       context "with HOMEBREW_NO_EMOJI unset" do
-        before { ENV.delete("HOMEBREW_NO_EMOJI") }
-
         it "returns a string with a colored checkmark" do
           expect(subject)
             .to match(/#{esc 1}foo #{esc 31}✘#{esc 0}/)
@@ -97,10 +92,10 @@ describe "globally-scoped helper methods" do
     let(:shell) { dir/"myshell" }
 
     it "starts an interactive shell session" do
-      IO.write shell, <<~EOS
+      IO.write shell, <<~SH
         #!/bin/sh
         echo called > "#{dir}/called"
-      EOS
+      SH
 
       FileUtils.chmod 0755, shell
 
@@ -258,7 +253,7 @@ describe "globally-scoped helper methods" do
   end
 
   describe "#odeprecated" do
-    it "raises a MethodDeprecatedError" do
+    it "raises a MethodDeprecatedError when `disable` is true" do
       ENV.delete("HOMEBREW_DEVELOPER")
       expect {
         odeprecated(
@@ -266,7 +261,10 @@ describe "globally-scoped helper methods" do
           caller: ["#{HOMEBREW_LIBRARY}/Taps/halyard/homebrew-core/"],
           disable: true
         )
-      }.to raise_error(MethodDeprecatedError, %r{method.*replacement.*halyard/homebrew-core.*halyard/core}m)
+      }.to raise_error(
+        MethodDeprecatedError,
+        %r{method.*replacement.*homebrew/core.*\/Taps\/homebrew\/homebrew-core\/}m,
+      )
     end
   end
 

@@ -46,6 +46,7 @@ module Stdenv
     send(compiler)
 
     return unless cc =~ GNU_GCC_REGEXP
+
     gcc_formula = gcc_version_formula($&)
     append_path "PATH", gcc_formula.opt_bin.to_s
   end
@@ -157,8 +158,9 @@ module Stdenv
     append_to_cflags Hardware::CPU.universal_archs.as_arch_flags
     append "LDFLAGS", Hardware::CPU.universal_archs.as_arch_flags
 
-    return if compiler == :clang
+    return if compiler_any_clang?
     return unless Hardware.is_32_bit?
+
     # Can't mix "-march" for a 32-bit CPU  with "-arch x86_64"
     replace_in_cflags(/-march=\S*/, "-Xarch_#{Hardware::CPU.arch_32_bit} \\0")
   end
@@ -167,7 +169,7 @@ module Stdenv
     if compiler == :clang
       append "CXX", "-std=c++11"
       append "CXX", "-stdlib=libc++"
-    elsif gcc_with_cxx11_support?(compiler)
+    elsif compiler_with_cxx11_support?(compiler)
       append "CXX", "-std=c++11"
     else
       raise "The selected compiler doesn't support C++11: #{compiler}"

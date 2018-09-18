@@ -1,4 +1,4 @@
-require_relative "./extend/formula_cop"
+require "rubocops/extend/formula_cop"
 
 module RuboCop
   module Cop
@@ -37,6 +37,7 @@ module RuboCop
 
             next unless option =~ /^with(out)?-(?:checks?|tests)$/
             next if depends_on?("check", :optional, :recommended)
+
             problem "Use '--with#{Regexp.last_match(1)}-test' instead of '--#{option}'."\
                     " Migrate '--#{option}' with `deprecated_option`."
           end
@@ -46,13 +47,13 @@ module RuboCop
 
     module NewFormulaAudit
       class Options < FormulaCop
-        DEP_OPTION = "New Formula should not use `deprecated_option`".freeze
-        OPTION = "Formula should not have an `option`".freeze
+        DEP_OPTION = "New formulae should not use `deprecated_option`".freeze
+        OPTION = "Formulae should not have an `option`".freeze
 
         def audit_formula(_node, _class_node, _parent_class_node, body_node)
-          return if versioned_formula?
           problem DEP_OPTION if method_called_ever?(body_node, :deprecated_option)
           return unless formula_tap == "homebrew-core"
+
           problem OPTION if method_called_ever?(body_node, :option)
         end
       end

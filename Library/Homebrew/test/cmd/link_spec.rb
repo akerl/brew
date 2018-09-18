@@ -29,17 +29,16 @@ describe "brew link", :integration_test do
   end
 
   it "refuses to link keg-only Formulae" do
-    setup_test_formula "testball1", <<~EOS
+    setup_test_formula "testball1", <<~RUBY
       keg_only "just because"
-    EOS
+    RUBY
 
     expect { brew "install", "testball1" }.to be_a_success
 
     expect { brew "link", "testball1", "SHELL" => "/bin/zsh" }
       .to output(/testball1 is keg-only/).to_stderr
-      .and output(a_string_matching(/Note that doing so can interfere with building software\./)
-        .and(matching("If you need to have this software first in your PATH instead consider running:")
-        .and(including("echo 'export PATH=\"#{HOMEBREW_PREFIX}/opt/testball1/bin:$PATH\"' >> ~/.zshrc")))).to_stdout
+      .and output(a_string_matching(/If you need to have this software first in your PATH instead consider running:/)
+        .and(including("echo 'export PATH=\"#{HOMEBREW_PREFIX}/opt/testball1/bin:$PATH\"' >> ~/.zshrc"))).to_stdout
       .and be_a_success
   end
 end

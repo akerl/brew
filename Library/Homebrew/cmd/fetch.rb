@@ -23,6 +23,7 @@
 #:    installation.
 
 require "formula"
+require "fetch"
 
 module Homebrew
   module_function
@@ -46,13 +47,14 @@ module Homebrew
       f.print_tap_action verb: "Fetching"
 
       fetched_bottle = false
-      if fetch_bottle?(f)
+      if Fetch.fetch_bottle?(f)
         begin
           fetch_formula(f.bottle)
         rescue Interrupt
           raise
         rescue => e
           raise if ARGV.homebrew_developer?
+
           fetched_bottle = false
           onoe e.message
           opoo "Bottle fetch failed: fetching the source."
@@ -62,6 +64,7 @@ module Homebrew
       end
 
       next if fetched_bottle
+
       fetch_formula(f)
 
       f.resources.each do |r|
@@ -71,14 +74,6 @@ module Homebrew
 
       f.patchlist.each { |p| fetch_patch(p) if p.external? }
     end
-  end
-
-  def fetch_bottle?(f)
-    return true if ARGV.force_bottle? && f.bottle
-    return false unless f.bottle && f.pour_bottle?
-    return false if ARGV.build_formula_from_source?(f)
-    return false unless f.bottle.compatible_cellar?
-    true
   end
 
   def fetch_resource(r)

@@ -3,14 +3,29 @@ module Utils
     popen(args, "rb", options, &block)
   end
 
+  def self.safe_popen_read(*args, **options, &block)
+    output = popen_read(*args, **options, &block)
+    return output if $CHILD_STATUS.success?
+
+    raise ErrorDuringExecution.new(args, status: $CHILD_STATUS, output: [[:stdout, output]])
+  end
+
   def self.popen_write(*args, **options, &block)
     popen(args, "wb", options, &block)
+  end
+
+  def self.safe_popen_write(*args, **options, &block)
+    output = popen_write(*args, **options, &block)
+    return output if $CHILD_STATUS.success?
+
+    raise ErrorDuringExecution.new(args, status: $CHILD_STATUS, output: [[:stdout, output]])
   end
 
   def self.popen(args, mode, options = {})
     IO.popen("-", mode) do |pipe|
       if pipe
         return pipe.read unless block_given?
+
         yield pipe
       else
         options[:err] ||= :close unless ENV["HOMEBREW_STDERR"]

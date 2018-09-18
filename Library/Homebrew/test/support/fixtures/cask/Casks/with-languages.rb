@@ -1,6 +1,6 @@
 cask 'with-languages' do
   version '1.2.3'
-  
+
   language "zh" do
     sha256 "abc123"
     "zh-CN"
@@ -12,7 +12,7 @@ cask 'with-languages' do
   end
 
   url "file://#{TEST_FIXTURE_DIR}/cask/caffeine.zip"
-  homepage 'http://example.com/local-caffeine'
- 
+  homepage 'https://example.com/local-caffeine'
+
   app 'Caffeine.app'
 end

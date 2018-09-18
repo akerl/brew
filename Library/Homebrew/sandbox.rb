@@ -10,11 +10,13 @@ class Sandbox
 
   def self.formula?(_formula)
     return false unless available?
+
     !ARGV.no_sandbox?
   end
 
   def self.test?
     return false unless available?
+
     !ARGV.no_sandbox?
   end
 
@@ -52,6 +54,15 @@ class Sandbox
     allow_write "^/private/var/folders/[^/]+/[^/]+/[C,T]/", type: :regex
     allow_write_path HOMEBREW_TEMP
     allow_write_path HOMEBREW_CACHE
+  end
+
+  def allow_cvs
+    allow_write_path "/Users/#{ENV["USER"]}/.cvspass"
+  end
+
+  def allow_fossil
+    allow_write_path "/Users/#{ENV["USER"]}/.fossil"
+    allow_write_path "/Users/#{ENV["USER"]}/.fossil-journal"
   end
 
   def allow_write_cellar(formula)
@@ -126,6 +137,7 @@ class Sandbox
 
   def expand_realpath(path)
     raise unless path.absolute?
+
     path.exist? ? path.realpath : expand_realpath(path.parent)/path.basename
   end
 
@@ -138,7 +150,7 @@ class Sandbox
   end
 
   class SandboxProfile
-    SEATBELT_ERB = <<~EOS.freeze
+    SEATBELT_ERB = <<~ERB.freeze
       (version 1)
       (debug deny) ; log all denied operations to /var/log/system.log
       <%= rules.join("\n") %>
@@ -157,7 +169,7 @@ class Sandbox
           (with no-sandbox)
           ) ; allow certain processes running without sandbox
       (allow default) ; allow everything else
-    EOS
+    ERB
 
     attr_reader :rules
 

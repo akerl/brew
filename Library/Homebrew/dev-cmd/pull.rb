@@ -64,6 +64,7 @@ module GitHub
   def test_bot_user(user, test_bot)
     return test_bot if test_bot
     return "BrewTestBot" if user.casecmp("homebrew").zero?
+
     "#{user.capitalize}TestBot"
   end
 end
@@ -74,7 +75,7 @@ module Homebrew
   def pull
     odie "You meant `git pull --rebase`." if ARGV[0] == "--rebase"
 
-    @args = Homebrew::CLI::Parser.parse do
+    Homebrew::CLI::Parser.parse do
       switch "--bottle"
       switch "--bump"
       switch "--clean"
@@ -116,7 +117,7 @@ module Homebrew
       end
     end
 
-    do_bump = @args.bump? && !@args.clean?
+    do_bump = args.bump? && !args.clean?
 
     # Formulae with affected bottles that were published
     bintray_published_formulae = []
@@ -127,7 +128,7 @@ module Homebrew
       if (testing_match = arg.match %r{/job/Homebrew.*Testing/(\d+)/})
         tap = ARGV.value("tap")
         tap = if tap&.start_with?("homebrew/")
-          Tap.fetch("homebrew", tap.strip_prefix("homebrew/"))
+          Tap.fetch("homebrew", tap.delete_prefix("homebrew/"))
         elsif tap
           odie "Tap option did not start with \"homebrew/\": #{tap}"
         else
@@ -135,7 +136,7 @@ module Homebrew
         end
         _, testing_job = *testing_match
         url = "https://github.com/Homebrew/homebrew-#{tap.repo}/compare/master...BrewTestBot:testing-#{testing_job}"
-        odie "Testing URLs require `--bottle`!" unless @args.bottle?
+        odie "Testing URLs require `--bottle`!" unless args.bottle?
       elsif (api_match = arg.match HOMEBREW_PULL_API_REGEX)
         _, user, repo, issue = *api_match
         url = "https://github.com/#{user}/#{repo}/pull/#{issue}"
@@ -147,7 +148,7 @@ module Homebrew
         odie "Not a GitHub pull request or commit: #{arg}"
       end
 
-      if !testing_job && @args.bottle? && issue.nil?
+      if !testing_job && args.bottle? && issue.nil?
         odie "No pull request detected!"
       end
 
@@ -165,11 +166,11 @@ module Homebrew
       orig_revision = `git rev-parse --short HEAD`.strip
       branch = `git symbolic-ref --short HEAD`.strip
 
-      unless branch == "master" || @args.clean? || @args.branch_okay?
+      unless branch == "master" || args.clean? || args.branch_okay?
         opoo "Current branch is #{branch}: do you need to pull inside master?"
       end
 
-      patch_puller = PatchPuller.new(url, @args)
+      patch_puller = PatchPuller.new(url, args)
       patch_puller.fetch_patch
       patch_changes = files_changed_in_patch(patch_puller.patchpath, tap)
 
@@ -194,6 +195,7 @@ module Homebrew
           "--diff-filter=AM", orig_revision, "HEAD", "--", tap.formula_dir.to_s
         ).each_line do |line|
           next unless line.end_with? ".rb\n"
+
           name = "#{tap.name}/#{File.basename(line.chomp, ".rb")}"
           changed_formulae_names << name
         end
@@ -217,7 +219,7 @@ module Homebrew
           end
         end
 
-        if @args.bottle?
+        if args.bottle?
           if f.bottle_unneeded?
             ohai "#{f}: skipping unneeded bottle."
           elsif f.bottle_disabled?
@@ -227,12 +229,13 @@ module Homebrew
           end
         else
           next unless f.bottle_defined?
+
           opoo "#{f.full_name} has a bottle: do you need to update it with --bottle?"
         end
       end
 
       orig_message = message = `git log HEAD^.. --format=%B`
-      if issue && !@args.clean?
+      if issue && !args.clean?
         ohai "Patch closes issue ##{issue}"
         close_message = "Closes ##{issue}."
         # If this is a pull request, append a close message.
@@ -244,7 +247,7 @@ module Homebrew
         is_bumpable = false
       end
 
-      is_bumpable = false if @args.clean?
+      is_bumpable = false if args.clean?
       is_bumpable = false if ENV["HOMEBREW_DISABLE_LOAD_FORMULA"]
 
       if is_bumpable
@@ -256,7 +259,7 @@ module Homebrew
           odie "No version changes found for #{formula.name}" if bump_subject.nil?
           unless orig_subject == bump_subject
             ohai "New bump commit subject: #{bump_subject}"
-            pbcopy bump_subject unless @args.no_pbcopy?
+            pbcopy bump_subject unless args.no_pbcopy?
             message = "#{bump_subject}\n\n#{message}"
           end
         elsif bump_subject != orig_subject && !bump_subject.nil?
@@ -265,7 +268,7 @@ module Homebrew
         end
       end
 
-      if message != orig_message && !@args.clean?
+      if message != orig_message && !args.clean?
         safe_system "git", "commit", "--amend", "--signoff", "--allow-empty", "-q", "-m", message
       end
 
@@ -276,7 +279,7 @@ module Homebrew
           url
         else
           bottle_branch = "pull-bottle-#{issue}"
-          bot_username = GitHub.test_bot_user(user, @args.test_bot_user)
+          bot_username = GitHub.test_bot_user(user, args.test_bot_user)
           "https://github.com/#{bot_username}/homebrew-#{tap.repo}/compare/#{user}:master...pr-#{issue}"
         end
 
@@ -290,7 +293,7 @@ module Homebrew
         safe_system "git", "branch", "--quiet", "-D", bottle_branch
 
         # Publish bottles on Bintray
-        unless @args.no_publish?
+        unless args.no_publish?
           published = publish_changed_formula_bottles(tap, changed_formulae_names)
           bintray_published_formulae.concat(published)
         end
@@ -320,8 +323,10 @@ module Homebrew
       changed_formulae_names.each do |name|
         f = Formula[name]
         next if f.bottle_unneeded? || f.bottle_disabled?
-        bintray_org = @args.bintray_org || tap.user.downcase
+
+        bintray_org = args.bintray_org || tap.user.downcase
         next unless publish_bottle_file_on_bintray(f, bintray_org, bintray_creds)
+
         published << f.full_name
       end
     else
@@ -331,7 +336,7 @@ module Homebrew
   end
 
   def pull_patch(url, description = nil)
-    PatchPuller.new(url, @args, description).pull_patch
+    PatchPuller.new(url, args, description).pull_patch
   end
 
   class PatchPuller
@@ -481,6 +486,7 @@ module Homebrew
     if info.nil?
       raise "Failed publishing bottle: failed reading formula info for #{f.full_name}"
     end
+
     unless info.bottle_info_any
       opoo "No bottle defined in formula #{package}"
       return false
@@ -495,6 +501,7 @@ module Homebrew
     true
   rescue => e
     raise unless @args.warn_on_publish_failure?
+
     onoe e
     false
   end
@@ -513,7 +520,7 @@ module Homebrew
     def self.lookup(name)
       json = Utils.popen_read(HOMEBREW_BREW_FILE, "info", "--json=v1", name)
 
-      return nil unless $CHILD_STATUS.success?
+      return unless $CHILD_STATUS.success?
 
       Homebrew.force_utf8!(json)
       FormulaInfoFromJson.new(JSON.parse(json)[0])
@@ -521,14 +528,17 @@ module Homebrew
 
     def bottle_tags
       return [] unless info["bottle"]["stable"]
+
       info["bottle"]["stable"]["files"].keys
     end
 
     def bottle_info(my_bottle_tag = Utils::Bottles.tag)
       tag_s = my_bottle_tag.to_s
-      return nil unless info["bottle"]["stable"]
+      return unless info["bottle"]["stable"]
+
       btl_info = info["bottle"]["stable"]["files"][tag_s]
-      return nil unless btl_info
+      return unless btl_info
+
       BottleInfo.new(btl_info["url"], btl_info["sha256"])
     end
 
@@ -623,6 +633,7 @@ module Homebrew
             if retry_count >= max_retries
               raise "Failed to find published #{f} bottle at #{url}!"
             end
+
             print(wrote_dots ? "." : "Waiting on Bintray.")
             wrote_dots = true
             sleep poll_retry_delay_seconds
@@ -641,12 +652,13 @@ module Homebrew
         # We're in the cache; make sure to force re-download
         loop do
           begin
-            curl_download url, continue_at: 0, to: filename
+            curl_download url, to: filename
             break
           rescue
             if retry_count >= max_curl_retries
               raise "Failed to download #{f} bottle from #{url}!"
             end
+
             puts "curl download failed; retrying in #{curl_retry_delay_seconds} sec"
             sleep curl_retry_delay_seconds
             curl_retry_delay_seconds *= 2
@@ -663,6 +675,7 @@ module Homebrew
     headers, = curl_output("--connect-timeout", "15", "--location", "--head", url)
     status_code = headers.scan(%r{^HTTP\/.* (\d+)}).last.first
     return if status_code.start_with?("2")
+
     opoo "The Bintray mirror #{url} is not reachable (HTTP status code #{status_code})."
     opoo "Do you need to upload it with `brew mirror #{name}`?"
   end

@@ -49,6 +49,7 @@ module Homebrew
       missing_test_deps = f.recursive_dependencies do |_, dependency|
         Dependency.prune if dependency.installed?
         next if dependency.test?
+
         Dependency.prune if dependency.optional?
         Dependency.prune if dependency.build?
       end.map(&:to_s)
@@ -65,7 +66,7 @@ module Homebrew
         args = %W[
           #{RUBY_PATH}
           -W0
-          -I #{HOMEBREW_LOAD_PATH}
+          -I #{$LOAD_PATH.join(File::PATH_SEPARATOR)}
           --
           #{HOMEBREW_LIBRARY_PATH}/test.rb
           #{f.path}
@@ -93,9 +94,6 @@ module Homebrew
             exec(*args)
           end
         end
-      rescue ::Test::Unit::AssertionFailedError => e
-        ofail "#{f.full_name}: failed"
-        puts e.message
       rescue Exception => e # rubocop:disable Lint/RescueException
         ofail "#{f.full_name}: failed"
         puts e, e.backtrace

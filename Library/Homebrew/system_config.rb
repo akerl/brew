@@ -47,6 +47,7 @@ class SystemConfig
 
     def describe_path(path)
       return "N/A" if path.nil?
+
       realpath = path.realpath
       if realpath == path
         path
@@ -70,6 +71,7 @@ class SystemConfig
 
     def hardware
       return if Hardware::CPU.type == :dunno
+
       "CPU: #{Hardware.cores_as_words}-core #{Hardware::CPU.bits}-bit #{Hardware::CPU.family}"
     end
 
@@ -79,23 +81,27 @@ class SystemConfig
 
     def describe_java
       return "N/A" unless which "java"
-      java_version = Utils.popen_read("java", "-version")
-      return "N/A" unless $CHILD_STATUS.success?
-      java_version[/java version "([\d\._]+)"/, 1] || "N/A"
+
+      _, err, status = system_command("java", args: ["-version"], print_stderr: false)
+      return "N/A" unless status.success?
+
+      err[/java version "([\d\._]+)"/, 1] || "N/A"
     end
 
     def describe_git
       return "N/A" unless Utils.git_available?
+
       "#{Utils.git_version} => #{Utils.git_path}"
     end
 
     def describe_curl
-      curl_version_output = Utils.popen_read("#{curl_executable} --version", err: :close)
-      curl_version_output =~ /^curl ([\d\.]+)/
-      curl_version = Regexp.last_match(1)
-      "#{curl_version} => #{curl_executable}"
-    rescue
-      "N/A"
+      out, = system_command(curl_executable, args: ["--version"])
+
+      if /^curl (?<curl_version>[\d\.]+)/ =~ out
+        "#{curl_version} => #{curl_executable}"
+      else
+        "N/A"
+      end
     end
 
     def dump_verbose_config(f = $stdout)
@@ -111,11 +117,12 @@ class SystemConfig
         f.puts "Core tap: N/A"
       end
       defaults_hash = {
-        HOMEBREW_PREFIX: "/usr/local",
-        HOMEBREW_REPOSITORY: "/usr/local/Homebrew",
-        HOMEBREW_CELLAR: "/usr/local/Cellar",
+        HOMEBREW_PREFIX: Homebrew::DEFAULT_PREFIX,
+        HOMEBREW_REPOSITORY: Homebrew::DEFAULT_REPOSITORY,
+        HOMEBREW_CELLAR: Homebrew::DEFAULT_CELLAR,
         HOMEBREW_CACHE: "#{ENV["HOME"]}/Library/Caches/Homebrew",
         HOMEBREW_RUBY_WARNINGS: "-W0",
+        HOMEBREW_TEMP: ENV["HOMEBREW_SYSTEM_TEMP"],
       }.freeze
       boring_keys = %w[
         HOMEBREW_BROWSER
@@ -124,6 +131,8 @@ class SystemConfig
         HOMEBREW_ANALYTICS_ID
         HOMEBREW_ANALYTICS_USER_UUID
         HOMEBREW_AUTO_UPDATE_CHECKED
+        HOMEBREW_BOTTLE_DEFAULT_DOMAIN
+        HOMEBREW_BOTTLE_DOMAIN
         HOMEBREW_BREW_FILE
         HOMEBREW_COMMAND_DEPTH
         HOMEBREW_CURL
@@ -132,6 +141,7 @@ class SystemConfig
         HOMEBREW_MACOS_VERSION
         HOMEBREW_RUBY_PATH
         HOMEBREW_SYSTEM
+        HOMEBREW_SYSTEM_TEMP
         HOMEBREW_OS_VERSION
         HOMEBREW_PATH
         HOMEBREW_PROCESSOR
@@ -153,11 +163,15 @@ class SystemConfig
       if defaults_hash[:HOMEBREW_RUBY_WARNINGS] != ENV["HOMEBREW_RUBY_WARNINGS"].to_s
         f.puts "HOMEBREW_RUBY_WARNINGS: #{ENV["HOMEBREW_RUBY_WARNINGS"]}"
       end
+      if defaults_hash[:HOMEBREW_TEMP] != HOMEBREW_TEMP.to_s
+        f.puts "HOMEBREW_TEMP: #{HOMEBREW_TEMP}"
+      end
       unless ENV["HOMEBREW_ENV"]
         ENV.sort.each do |key, value|
           next unless key.start_with?("HOMEBREW_")
           next if boring_keys.include?(key)
           next if defaults_hash[key.to_sym]
+
           value = "set" if key =~ /(cookie|key|token|password)/i
           f.puts "#{key}: #{value}"
         end

@@ -65,7 +65,8 @@ class BuildOptions
     include? "devel"
   end
 
-  # True if a {Formula} is being built with {Formula.stable} instead of {Formula.devel} or {Formula.head}. This is the default.
+  # True if a {Formula} is being built with {Formula.stable} instead of {Formula.devel}
+  # or {Formula.head}. This is the default.
   # <pre>args << "--some-beta" if build.devel?</pre>
   def stable?
     !(head? || devel?)
@@ -81,6 +82,11 @@ class BuildOptions
   # True if a {Formula} is being built in C++11 mode.
   def cxx11?
     include?("c++11") && option_defined?("c++11")
+  end
+
+  # True if the build has any arguments or options specified.
+  def any_args_or_options?
+    !@args.empty? || !@options.empty?
   end
 
   # @private

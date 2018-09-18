@@ -11,6 +11,7 @@ module Homebrew
     path = tap.path/filename
     tap.path.mkpath
     raise "#{path} already exists" if path.exist?
+
     path.write content
   end
 
@@ -30,7 +31,7 @@ module Homebrew
 
     (tap.path/"Formula").mkpath
 
-    readme = <<~EOS
+    readme = <<~MARKDOWN
       # #{titleized_user} #{titleized_repo}
 
       ## How do I install these formulae?
@@ -46,17 +47,17 @@ module Homebrew
 
       ## Documentation
       `brew help`, `man brew` or check [Homebrew's documentation](https://docs.brew.sh).
-    EOS
+    MARKDOWN
     write_path(tap, "README.md", readme)
 
-    travis = <<~EOS
+    travis = <<~YAML
       language: c
       os: osx
       compiler: clang
       osx_image: xcode9.2
       cache:
         directories:
-          - /usr/local/Homebrew/Library/Homebrew/vendor/bundle
+          - #{Homebrew::DEFAULT_PREFIX}/Homebrew/Library/Homebrew/vendor/bundle
       branches:
         only:
           - master
@@ -71,7 +72,7 @@ module Homebrew
 
       script:
         - brew test-bot
-    EOS
+    YAML
     write_path(tap, ".travis.yml", travis)
   end
 end

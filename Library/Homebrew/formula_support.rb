@@ -12,7 +12,7 @@ class KegOnlyReason
   end
 
   def valid?
-    true
+    ![:provided_by_macos, :provided_by_osx, :shadowed_by_macos].include?(@reason)
   end
 
   def to_s
@@ -58,6 +58,9 @@ class BottleDisableReason
 
   def to_s
     return "This formula doesn't require compiling." if unneeded?
+
     @reason
   end
 end
+
+require "extend/os/formula_support"

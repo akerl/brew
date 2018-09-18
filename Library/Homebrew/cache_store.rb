@@ -26,12 +26,14 @@ class CacheStoreDatabase
   # Gets a value from the underlying database (if it already exists).
   def get(key)
     return unless created?
+
     db[key]
   end
 
   # Gets a value from the underlying database (if it already exists).
   def delete(key)
     return unless created?
+
     db.delete(key)
   end
 
@@ -62,7 +64,10 @@ class CacheStoreDatabase
   # @return [DBM] db
   def db
     # DBM::WRCREAT: Creates the database if it does not already exist
-    @db ||= DBM.open(dbm_file_path, DATABASE_MODE, DBM::WRCREAT)
+    @db ||= begin
+      HOMEBREW_CACHE.mkpath
+      DBM.open(dbm_file_path, DATABASE_MODE, DBM::WRCREAT)
+    end
   end
 
   # Creates a CacheStoreDatabase

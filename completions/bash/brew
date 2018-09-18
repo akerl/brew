@@ -221,6 +221,7 @@ _brew_install() {
           --interactive
           --only-dependencies
           --verbose
+          --display-times
           $(brew options --compact "$prv" 2>/dev/null)
           "
       fi
@@ -481,6 +482,7 @@ _brew_unpack() {
   esac
   __brew_complete_formulae
 }
+
 _brew_update() {
   local cur="${COMP_WORDS[COMP_CWORD]}"
   case "$cur" in
@@ -504,6 +506,7 @@ _brew_upgrade() {
         --debug
         --verbose
         --fetch-HEAD
+        --display-times
         "
       return
       ;;
@@ -595,18 +598,6 @@ __brew_cask_complete_outdated ()
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local outdated=$(brew cask outdated --quiet)
     COMPREPLY=($(compgen -W "$outdated" -- "$cur"))
-}
-
-_brew_cask_cleanup ()
-{
-    local cur="${COMP_WORDS[COMP_CWORD]}"
-    case "$cur" in
-    -*)
-        __brew_caskcomp "--force"
-        return
-        ;;
-    esac
-    __brew_cask_complete_installed
 }
 
 _brew_cask_fetch ()
@@ -730,7 +721,6 @@ _brew_cask ()
       --version)              __brewcomp_null ;;
       audit)                  __brew_cask_complete_formulae ;;
       cat)                    __brew_cask_complete_formulae ;;
-      cleanup)                _brew_cask_cleanup ;;
       create)                 ;;
       doctor)                 __brewcomp_null ;;
       edit)                   __brew_cask_complete_formulae ;;

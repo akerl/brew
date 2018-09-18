@@ -11,11 +11,14 @@ require "utils/link"
 require "utils/popen"
 require "utils/svn"
 require "utils/tty"
+require "tap_constants"
 require "time"
 
 def require?(path)
   return false if path.nil?
+
   require path
+  true
 rescue LoadError => e
   # we should raise on syntax errors but not if the file doesn't exist.
   raise unless e.message.include?(path)
@@ -25,6 +28,13 @@ def ohai(title, *sput)
   title = Tty.truncate(title) if $stdout.tty? && !ARGV.verbose?
   puts Formatter.headline(title, color: :blue)
   puts sput
+end
+
+def odebug(title, *sput)
+  return unless ARGV.debug?
+
+  puts Formatter.headline(title, color: :magenta)
+  puts sput unless sput.empty?
 end
 
 def oh1(title, options = {})
@@ -79,7 +89,6 @@ def odeprecated(method, replacement = nil, disable: false, disable_on: nil, call
   # - Location outside of 'compat/'.
   # - Location of caller of deprecated method (if all else fails).
   backtrace = caller
-  tap_message = nil
 
   # Don't throw deprecations at all for cached, .brew or .metadata files.
   return if backtrace.any? do |line|
@@ -88,31 +97,27 @@ def odeprecated(method, replacement = nil, disable: false, disable_on: nil, call
     line.include?("/.metadata/")
   end
 
-  caller_message = backtrace.detect do |line|
-    next unless line =~ %r{^#{Regexp.escape(HOMEBREW_LIBRARY)}/Taps/([^/]+/[^/]+)/}
-    tap = Tap.fetch Regexp.last_match(1)
-    tap_message = "\nPlease report this to the #{tap} tap!"
-    true
-  end
-  caller_message ||= backtrace.detect do |line|
-    !line.start_with?("#{HOMEBREW_LIBRARY_PATH}/compat/")
-  end
-  caller_message ||= backtrace[1]
+  tap_message = nil
 
-  message = <<~EOS
-    Calling #{method} is #{verb}!
-    #{replacement_message}
-    #{caller_message}#{tap_message}
-  EOS
+  backtrace.each do |line|
+    next unless match = line.match(HOMEBREW_TAP_PATH_REGEX)
 
-  if ARGV.homebrew_developer? || disable ||
-     Homebrew.raise_deprecation_exceptions?
-    if replacement || tap_message
-      message += "Or, even better, submit a PR to fix it!"
-    end
-    raise MethodDeprecatedError, message
+    tap = Tap.fetch(match[:user], match[:repo])
+    tap_message = "\nPlease report this to the #{tap} tap"
+    tap_message += ", or even better, submit a PR to fix it" if replacement
+    tap_message << ":\n  #{line.sub(/^(.*\:\d+)\:.*$/, '\1')}\n\n"
+    break
+  end
+
+  message = "Calling #{method} is #{verb}! #{replacement_message}"
+  message << tap_message if tap_message
+
+  if ARGV.homebrew_developer? || disable || Homebrew.raise_deprecation_exceptions?
+    exception = MethodDeprecatedError.new(message)
+    exception.set_backtrace(backtrace)
+    raise exception
   elsif !Homebrew.auditing?
-    opoo "#{message}\n"
+    opoo message
   end
 end
 
@@ -150,6 +155,7 @@ def pretty_duration(s)
     s %= 60
     res = Formatter.pluralize(m, "minute")
     return res if s.zero?
+
     res << " "
   end
 
@@ -171,6 +177,7 @@ def interactive_shell(f = nil)
 
   return if $CHILD_STATUS.success?
   raise "Aborted due to non-zero exit status (#{$CHILD_STATUS.exitstatus})" if $CHILD_STATUS.exited?
+
   raise $CHILD_STATUS.inspect
 end
 
@@ -180,7 +187,7 @@ module Homebrew
   def _system(cmd, *args, **options)
     pid = fork do
       yield if block_given?
-      args.collect!(&:to_s)
+      args.map!(&:to_s)
       begin
         exec(cmd, *args, **options)
       rescue
@@ -236,6 +243,7 @@ module Homebrew
     install_gem!(name, version)
 
     return if which(executable)
+
     odie <<~EOS
       The '#{name}' gem is installed but couldn't find '#{executable}' in the PATH:
       #{ENV["PATH"]}
@@ -250,6 +258,7 @@ module Homebrew
     the_module.module_eval do
       instance_methods.grep(pattern).each do |name|
         next if injected_methods.include? name
+
         method = instance_method(name)
         define_method(name) do |*args, &block|
           begin
@@ -264,6 +273,7 @@ module Homebrew
     end
 
     return unless $times.nil?
+
     $times = {}
     at_exit do
       col_width = [$times.keys.map(&:size).max + 2, 15].max
@@ -295,7 +305,9 @@ end
 
 # Kernel.system but with exceptions
 def safe_system(cmd, *args, **options)
-  Homebrew.system(cmd, *args, **options) || raise(ErrorDuringExecution.new(cmd, args))
+  return if Homebrew.system(cmd, *args, **options)
+
+  raise(ErrorDuringExecution.new([cmd, *args], status: $CHILD_STATUS))
 end
 
 # prints no output
@@ -366,6 +378,7 @@ def exec_browser(*args)
   browser = ENV["HOMEBREW_BROWSER"]
   browser ||= OS::PATH_OPEN if defined?(OS::PATH_OPEN)
   return unless browser
+
   safe_exec(browser, *args)
 end
 
@@ -377,7 +390,7 @@ end
 
 # GZips the given paths, and returns the gzipped paths
 def gzip(*paths)
-  paths.collect do |path|
+  paths.map do |path|
     safe_system "gzip", path
     Pathname.new("#{path}.gz")
   end
@@ -423,7 +436,7 @@ def nostdout
 end
 
 def paths
-  @paths ||= PATH.new(ENV["HOMEBREW_PATH"]).collect do |p|
+  @paths ||= PATH.new(ENV["HOMEBREW_PATH"]).map do |p|
     begin
       File.expand_path(p).chomp("/")
     rescue ArgumentError
@@ -493,45 +506,6 @@ def truncate_text_to_approximate_size(s, max_bytes, options = {})
   out.encode!("UTF-16", invalid: :replace)
   out.encode!("UTF-8")
   out
-end
-
-def migrate_legacy_keg_symlinks_if_necessary
-  legacy_linked_kegs = HOMEBREW_LIBRARY/"LinkedKegs"
-  return unless legacy_linked_kegs.directory?
-
-  HOMEBREW_LINKED_KEGS.mkpath unless legacy_linked_kegs.children.empty?
-  legacy_linked_kegs.children.each do |link|
-    name = link.basename.to_s
-    src = begin
-      link.realpath
-    rescue Errno::ENOENT
-      begin
-        (HOMEBREW_PREFIX/"opt/#{name}").realpath
-      rescue Errno::ENOENT
-        begin
-          Formulary.factory(name).installed_prefix
-        rescue
-          next
-        end
-      end
-    end
-    dst = HOMEBREW_LINKED_KEGS/name
-    dst.unlink if dst.exist?
-    FileUtils.ln_sf(src.relative_path_from(dst.parent), dst)
-  end
-  FileUtils.rm_rf legacy_linked_kegs
-
-  legacy_pinned_kegs = HOMEBREW_LIBRARY/"PinnedKegs"
-  return unless legacy_pinned_kegs.directory?
-
-  HOMEBREW_PINNED_KEGS.mkpath unless legacy_pinned_kegs.children.empty?
-  legacy_pinned_kegs.children.each do |link|
-    name = link.basename.to_s
-    src = link.realpath
-    dst = HOMEBREW_PINNED_KEGS/name
-    FileUtils.ln_sf(src.relative_path_from(dst.parent), dst)
-  end
-  FileUtils.rm_rf legacy_pinned_kegs
 end
 
 # Calls the given block with the passed environment variables

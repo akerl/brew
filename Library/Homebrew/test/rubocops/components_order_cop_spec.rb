@@ -1,4 +1,4 @@
-require_relative "../../rubocops/components_order_cop"
+require "rubocops/components_order_cop"
 
 describe RuboCop::Cop::FormulaAudit::ComponentsOrder do
   subject(:cop) { described_class.new }
@@ -7,9 +7,9 @@ describe RuboCop::Cop::FormulaAudit::ComponentsOrder do
     it "When url precedes homepage" do
       expect_offense(<<~RUBY)
         class Foo < Formula
-          url "http://example.com/foo-1.0.tgz"
-          homepage "http://example.com"
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `homepage` (line 3) should be put before `url` (line 2)
+          url "https://example.com/foo-1.0.tgz"
+          homepage "https://example.com"
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `homepage` (line 3) should be put before `url` (line 2)
         end
       RUBY
     end
@@ -62,26 +62,26 @@ describe RuboCop::Cop::FormulaAudit::ComponentsOrder do
 
   context "When auditing formula components order with autocorrect" do
     it "When url precedes homepage" do
-      source = <<~EOS
+      source = <<~RUBY
         class Foo < Formula
-          url "http://example.com/foo-1.0.tgz"
-          homepage "http://example.com"
+          url "https://example.com/foo-1.0.tgz"
+          homepage "https://example.com"
         end
-      EOS
+      RUBY
 
-      correct_source = <<~EOS
+      correct_source = <<~RUBY
         class Foo < Formula
-          homepage "http://example.com"
-          url "http://example.com/foo-1.0.tgz"
+          homepage "https://example.com"
+          url "https://example.com/foo-1.0.tgz"
         end
-      EOS
+      RUBY
 
       corrected_source = autocorrect_source(source)
       expect(corrected_source).to eq(correct_source)
     end
 
     it "When `resource` precedes `depends_on`" do
-      source = <<~EOS
+      source = <<~RUBY
         class Foo < Formula
           url "https://example.com/foo-1.0.tgz"
 
@@ -91,9 +91,9 @@ describe RuboCop::Cop::FormulaAudit::ComponentsOrder do
 
           depends_on "openssl"
         end
-      EOS
+      RUBY
 
-      correct_source = <<~EOS
+      correct_source = <<~RUBY
         class Foo < Formula
           url "https://example.com/foo-1.0.tgz"
 
@@ -103,7 +103,7 @@ describe RuboCop::Cop::FormulaAudit::ComponentsOrder do
             url "https://example.com/foo-2.0.tgz"
           end
         end
-      EOS
+      RUBY
 
       corrected_source = autocorrect_source(source)
       expect(corrected_source).to eq(correct_source)

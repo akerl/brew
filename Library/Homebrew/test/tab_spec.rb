@@ -138,6 +138,18 @@ describe Tab do
     expect(tab.runtime_dependencies).not_to be nil
   end
 
+  specify "::runtime_deps_hash" do
+    runtime_deps = [Dependency.new("foo")]
+    stub_formula_loader formula("foo") { url "foo-1.0" }
+    runtime_deps_hash = described_class.runtime_deps_hash(runtime_deps)
+    tab = described_class.new
+    tab.homebrew_version = "1.1.6"
+    tab.runtime_dependencies = runtime_deps_hash
+    expect(tab.runtime_dependencies).to eql(
+      [{ "full_name" => "foo", "version" => "1.0" }],
+    )
+  end
+
   specify "#cxxstdlib" do
     expect(subject.cxxstdlib.compiler).to eq(:clang)
     expect(subject.cxxstdlib.type).to eq(:libcxx)
@@ -179,10 +191,40 @@ describe Tab do
       expect(tab.head_version.to_s).to eq("HEAD-0000000")
       expect(tab.source["path"]).to eq(source_path)
     end
+  end
+
+  describe "::from_file_content" do
+    it "parses a Tab from a file" do
+      path = Pathname.new("#{TEST_FIXTURE_DIR}/receipt.json")
+      tab = described_class.from_file_content(path.read, path)
+      source_path = "/usr/local/Library/Taps/homebrew/homebrew-core/Formula/foo.rb"
+      runtime_dependencies = [{ "full_name" => "foo", "version" => "1.0" }]
+      changed_files = %w[INSTALL_RECEIPT.json bin/foo]
+
+      expect(tab.used_options.sort).to eq(used_options.sort)
+      expect(tab.unused_options.sort).to eq(unused_options.sort)
+      expect(tab.changed_files).to eq(changed_files)
+      expect(tab).not_to be_built_as_bottle
+      expect(tab).to be_poured_from_bottle
+      expect(tab).to be_stable
+      expect(tab).not_to be_devel
+      expect(tab).not_to be_head
+      expect(tab.tap.name).to eq("homebrew/core")
+      expect(tab.spec).to eq(:stable)
+      expect(tab.time).to eq(Time.at(1_403_827_774).to_i)
+      expect(tab.HEAD).to eq(TEST_SHA1)
+      expect(tab.cxxstdlib.compiler).to eq(:clang)
+      expect(tab.cxxstdlib.type).to eq(:libcxx)
+      expect(tab.runtime_dependencies).to eq(runtime_dependencies)
+      expect(tab.stable_version.to_s).to eq("2.14")
+      expect(tab.devel_version.to_s).to eq("2.15")
+      expect(tab.head_version.to_s).to eq("HEAD-0000000")
+      expect(tab.source["path"]).to eq(source_path)
+    end
 
     it "can parse an old Tab file" do
       path = Pathname.new("#{TEST_FIXTURE_DIR}/receipt_old.json")
-      tab = described_class.from_file(path)
+      tab = described_class.from_file_content(path.read, path)
 
       expect(tab.used_options.sort).to eq(used_options.sort)
       expect(tab.unused_options.sort).to eq(unused_options.sort)
@@ -198,6 +240,13 @@ describe Tab do
       expect(tab.cxxstdlib.compiler).to eq(:clang)
       expect(tab.cxxstdlib.type).to eq(:libcxx)
       expect(tab.runtime_dependencies).to be nil
+    end
+
+    it "raises a parse exception message including the Tab filename" do
+      expect { described_class.from_file_content("''", "receipt.json") }.to raise_error(
+        JSON::ParserError,
+        /receipt.json:/,
+      )
     end
   end
 

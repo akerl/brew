@@ -35,7 +35,8 @@ git_init_if_necessary() {
     git config --bool core.autocrlf false
     git config remote.origin.url "$BREW_OFFICIAL_REMOTE"
     git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    git fetch --force --depth=1 origin refs/heads/master:refs/remotes/origin/master
+    latest_tag="$(git ls-remote --tags --refs -q origin | tail -n1 | cut -f2)"
+    git fetch --force origin --shallow-since="$latest_tag"
     git reset --hard origin/master
     SKIP_FETCH_BREW_REPOSITORY=1
     set +e
@@ -384,8 +385,8 @@ EOS
   fi
 
   if ! git --version &>/dev/null ||
-       [[ -n "$HOMEBREW_SYSTEM_GIT_TOO_OLD" &&
-        ! -x "$HOMEBREW_PREFIX/opt/git/bin/git" ]]
+     [[ -n "$HOMEBREW_FORCE_BREWED_GIT" &&
+      ! -x "$HOMEBREW_PREFIX/opt/git/bin/git" ]]
   then
     # we cannot install brewed git if halyard/core is unavailable.
     [[ -d "$HOMEBREW_LIBRARY/Taps/halyard/homebrew-core" ]] && brew install git
@@ -403,6 +404,13 @@ EOS
     QUIET_ARGS=(-q)
   else
     QUIET_ARGS=()
+  fi
+
+  if [[ -z "$HOMEBREW_CURLRC" ]]
+  then
+    CURL_DISABLE_CURLRC_ARGS=(-q)
+  else
+    CURL_DISABLE_CURLRC_ARGS=()
   fi
 
   # only allow one instance of brew update
@@ -480,8 +488,10 @@ EOS
           GITHUB_API_ENDPOINT="commits/$UPSTREAM_BRANCH_DIR"
         fi
 
-        UPSTREAM_SHA_HTTP_CODE="$("$HOMEBREW_CURL" --silent --max-time 3 \
-           --output /dev/null --write-out "%{http_code}" \
+        UPSTREAM_SHA_HTTP_CODE="$("$HOMEBREW_CURL" \
+           "${CURL_DISABLE_CURLRC_ARGS[@]}" \
+           --silent --max-time 3 \
+           --location --output /dev/null --write-out "%{http_code}" \
            --dump-header "$DIR/.git/GITHUB_HEADERS" \
            --user-agent "$HOMEBREW_USER_AGENT_CURL" \
            --header "Accept: $GITHUB_API_ACCEPT" \

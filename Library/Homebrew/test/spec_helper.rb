@@ -14,10 +14,9 @@ require "rubocop"
 require "rubocop/rspec/support"
 require "find"
 
-$LOAD_PATH.unshift(File.expand_path("#{ENV["HOMEBREW_LIBRARY"]}/Homebrew"))
-$LOAD_PATH.unshift(File.expand_path("#{ENV["HOMEBREW_LIBRARY"]}/Homebrew/test/support/lib"))
+$LOAD_PATH.push(File.expand_path("#{ENV["HOMEBREW_LIBRARY"]}/Homebrew/test/support/lib"))
 
-require "global"
+require_relative "../global"
 
 require "test/support/no_seed_progress_formatter"
 require "test/support/helper/fixtures"
@@ -33,7 +32,7 @@ TEST_DIRECTORIES = [
   HOMEBREW_CACHE,
   HOMEBREW_CACHE_FORMULA,
   HOMEBREW_CELLAR,
-  HOMEBREW_LOCK_DIR,
+  HOMEBREW_LOCKS,
   HOMEBREW_LOGS,
   HOMEBREW_TEMP,
 ].freeze
@@ -41,7 +40,11 @@ TEST_DIRECTORIES = [
 RSpec.configure do |config|
   config.order = :random
 
+  config.raise_errors_for_deprecations!
+
   config.filter_run_when_matching :focus
+
+  config.silence_filter_announcements = true
 
   # TODO: when https://github.com/rspec/rspec-expectations/pull/1056
   #       makes it into a stable release:
@@ -81,8 +84,16 @@ RSpec.configure do |config|
     skip "Requires network connection." unless ENV["HOMEBREW_TEST_ONLINE"]
   end
 
+  config.around(:each, :needs_network) do |example|
+    example.run_with_retry retry: 3, retry_wait: 1
+  end
+
   config.before(:each, :needs_svn) do
-    skip "Requires subversion." unless which "svn"
+    skip "subversion not installed." unless which "svn"
+  end
+
+  config.before(:each, :needs_unzip) do
+    skip "unzip not installed." unless which("unzip")
   end
 
   config.around(:each) do |example|
@@ -93,6 +104,8 @@ RSpec.configure do |config|
     end
 
     begin
+      Tap.clear_cache
+
       TEST_DIRECTORIES.each(&:mkpath)
 
       @__homebrew_failed = Homebrew.failed?
@@ -125,13 +138,9 @@ RSpec.configure do |config|
 
       FileUtils.rm_rf [
         TEST_DIRECTORIES.map(&:children),
+        *Keg::MUST_EXIST_DIRECTORIES,
         HOMEBREW_LINKED_KEGS,
         HOMEBREW_PINNED_KEGS,
-        HOMEBREW_PREFIX/".git",
-        HOMEBREW_PREFIX/"bin",
-        HOMEBREW_PREFIX/"etc",
-        HOMEBREW_PREFIX/"share",
-        HOMEBREW_PREFIX/"opt",
         HOMEBREW_PREFIX/"Caskroom",
         HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-cask",
         HOMEBREW_LIBRARY/"Taps/homebrew/homebrew-bar",
@@ -161,3 +170,4 @@ end
 
 RSpec::Matchers.define_negated_matcher :not_to_output, :output
 RSpec::Matchers.alias_matcher :have_failed, :be_failed
+RSpec::Matchers.alias_matcher :a_string_containing, :include

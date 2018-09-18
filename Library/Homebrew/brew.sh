@@ -59,7 +59,7 @@ HOMEBREW_VERSION="$(git -C "$HOMEBREW_REPOSITORY" describe --tags --dirty --abbr
 HOMEBREW_USER_AGENT_VERSION="$HOMEBREW_VERSION"
 if [[ -z "$HOMEBREW_VERSION" ]]
 then
-  HOMEBREW_VERSION=">=1.4.0 (shallow or no git repository)"
+  HOMEBREW_VERSION=">=1.7.1 (shallow or no git repository)"
   HOMEBREW_USER_AGENT_VERSION="1.X.Y"
 fi
 
@@ -86,6 +86,7 @@ then
   HOMEBREW_OS_VERSION="macOS $HOMEBREW_MACOS_VERSION"
   # Don't change this from Mac OS X to match what macOS itself does in Safari on 10.12
   HOMEBREW_OS_USER_AGENT_VERSION="Mac OS X $HOMEBREW_MACOS_VERSION"
+  HOMEBREW_BOTTLE_DEFAULT_DOMAIN="https://homebrew.bintray.com"
 
   # The system Curl is too old for some modern HTTPS certificates on
   # older macOS versions.
@@ -96,43 +97,51 @@ then
     HOMEBREW_FORCE_BREWED_CURL="1"
   fi
 
-  # The system Git is too old for some GitHub's SSL ciphers on older
-  # macOS versions.
-  # https://github.com/blog/2507-weak-cryptographic-standards-removed
-  if [[ "$HOMEBREW_MACOS_VERSION_NUMERIC" -lt "100900" ]]
+  # The system Git is too old for some Homebrew functionality we rely on.
+  if [[ "$HOMEBREW_MACOS_VERSION_NUMERIC" -lt "101200" ]]
   then
-    HOMEBREW_SYSTEM_GIT_TOO_OLD="1"
+    HOMEBREW_FORCE_BREWED_GIT="1"
   fi
 
-  if [[ -z "$HOMEBREW_CACHE" ]]
-  then
-    HOMEBREW_CACHE="$HOME/Library/Caches/Homebrew"
-  fi
+  HOMEBREW_CACHE="${HOMEBREW_CACHE:-${HOME}/Library/Caches/Homebrew}"
+  HOMEBREW_SYSTEM_TEMP="/private/tmp"
 else
   HOMEBREW_PROCESSOR="$(uname -m)"
   HOMEBREW_PRODUCT="${HOMEBREW_SYSTEM}brew"
   [[ -n "$HOMEBREW_LINUX" ]] && HOMEBREW_OS_VERSION="$(lsb_release -sd 2>/dev/null)"
   : "${HOMEBREW_OS_VERSION:=$(uname -r)}"
   HOMEBREW_OS_USER_AGENT_VERSION="$HOMEBREW_OS_VERSION"
+  HOMEBREW_BOTTLE_DEFAULT_DOMAIN="https://linuxbrew.bintray.com"
 
-  if [[ -z "$HOMEBREW_CACHE" ]]
-  then
-    if [[ -n "$XDG_CACHE_HOME" ]]
-    then
-      HOMEBREW_CACHE="$XDG_CACHE_HOME/Homebrew"
-    else
-      HOMEBREW_CACHE="$HOME/.cache/Homebrew"
-    fi
-  fi
+  CACHE_HOME="${XDG_CACHE_HOME:-${HOME}/.cache}"
+  HOMEBREW_CACHE="${HOMEBREW_CACHE:-${CACHE_HOME}/Homebrew}"
+  HOMEBREW_SYSTEM_TEMP="/tmp"
 fi
+
+HOMEBREW_TEMP="${HOMEBREW_TEMP:-${HOMEBREW_SYSTEM_TEMP}}"
 
 if [[ -n "$HOMEBREW_FORCE_BREWED_CURL" &&
       -x "$HOMEBREW_PREFIX/opt/curl/bin/curl" ]] &&
          "$HOMEBREW_PREFIX/opt/curl/bin/curl" --version >/dev/null
 then
   HOMEBREW_CURL="$HOMEBREW_PREFIX/opt/curl/bin/curl"
+elif [[ -n "$HOMEBREW_DEVELOPER" && -x "$HOMEBREW_CURL_PATH" ]]
+then
+  HOMEBREW_CURL="$HOMEBREW_CURL_PATH"
 else
   HOMEBREW_CURL="curl"
+fi
+
+if [[ -n "$HOMEBREW_FORCE_BREWED_GIT" &&
+      -x "$HOMEBREW_PREFIX/opt/git/bin/git" ]] &&
+         "$HOMEBREW_PREFIX/opt/git/bin/git" --version >/dev/null
+then
+  HOMEBREW_GIT="$HOMEBREW_PREFIX/opt/git/bin/git"
+elif [[ -n "$HOMEBREW_DEVELOPER" && -x "$HOMEBREW_GIT_PATH" ]]
+then
+  HOMEBREW_GIT="$HOMEBREW_GIT_PATH"
+else
+  HOMEBREW_GIT="git"
 fi
 
 HOMEBREW_USER_AGENT="$HOMEBREW_PRODUCT/$HOMEBREW_USER_AGENT_VERSION ($HOMEBREW_SYSTEM; $HOMEBREW_PROCESSOR $HOMEBREW_OS_USER_AGENT_VERSION)"
@@ -144,6 +153,8 @@ export HOMEBREW_BREW_FILE
 export HOMEBREW_PREFIX
 export HOMEBREW_REPOSITORY
 export HOMEBREW_LIBRARY
+export HOMEBREW_SYSTEM_TEMP
+export HOMEBREW_TEMP
 
 # Declared in brew.sh
 export HOMEBREW_VERSION
@@ -151,6 +162,7 @@ export HOMEBREW_CACHE
 export HOMEBREW_CELLAR
 export HOMEBREW_SYSTEM
 export HOMEBREW_CURL
+export HOMEBREW_GIT
 export HOMEBREW_PROCESSOR
 export HOMEBREW_PRODUCT
 export HOMEBREW_OS_VERSION
@@ -264,6 +276,11 @@ then
   export HOMEBREW_RUBY_WARNINGS="-W0"
 fi
 
+if [[ -z "$HOMEBREW_BOTTLE_DOMAIN" ]]
+then
+  export HOMEBREW_BOTTLE_DOMAIN="$HOMEBREW_BOTTLE_DEFAULT_DOMAIN"
+fi
+
 if [[ -f "$HOMEBREW_LIBRARY/Homebrew/cmd/$HOMEBREW_COMMAND.sh" ]]
 then
   HOMEBREW_BASH_COMMAND="$HOMEBREW_LIBRARY/Homebrew/cmd/$HOMEBREW_COMMAND.sh"
@@ -293,6 +310,21 @@ build scripts full access to your system.
 EOS
 }
 check-run-command-as-root
+
+check-prefix-is-not-tmpdir() {
+  [[ -z "${HOMEBREW_MACOS}" ]] && return
+
+  if [[ "${HOMEBREW_PREFIX}" = "${HOMEBREW_TEMP}"* ]]
+  then
+    odie <<EOS
+Your HOMEBREW_PREFIX is in the Homebrew temporary directory, which Homebrew
+uses to store downloads and builds. You can resolve this by installing Homebrew to
+either the standard prefix (/usr/local) or to a non-standard prefix that is not
+in the Homebrew temporary directory.
+EOS
+  fi
+}
+check-prefix-is-not-tmpdir
 
 if [[ "$HOMEBREW_PREFIX" = "/usr/local" &&
       "$HOMEBREW_PREFIX" != "$HOMEBREW_REPOSITORY" &&

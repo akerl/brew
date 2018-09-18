@@ -4,6 +4,9 @@ describe "brew bottle", :integration_test do
       expect { brew "install", "--build-bottle", testball }
         .to be_a_success
 
+      setup_test_formula "patchelf"
+      (HOMEBREW_CELLAR/"patchelf/1.0/bin").mkpath
+
       expect { brew "bottle", "--no-rebuild", testball }
         .to output(/Formula not from core or any taps/).to_stderr
         .and not_to_output.to_stdout
@@ -18,11 +21,11 @@ describe "brew bottle", :integration_test do
       end
 
       expect { brew "bottle", "--no-rebuild", "testball" }
-        .to output(/testball-0\.1.*\.bottle\.tar\.gz/).to_stdout
+        .to output(/testball--0\.1.*\.bottle\.tar\.gz/).to_stdout
         .and not_to_output.to_stderr
         .and be_a_success
     ensure
-      FileUtils.rm_f Dir.glob("testball-0.1*.bottle.tar.gz")
+      FileUtils.rm_f Dir.glob("testball--0.1*.bottle.tar.gz")
     end
   end
 end

@@ -22,7 +22,7 @@ module Homebrew
   module_function
 
   def tests
-    args = Homebrew::CLI::Parser.parse do
+    Homebrew::CLI::Parser.parse do
       switch "--no-compat"
       switch "--generic"
       switch "--coverage"
@@ -34,21 +34,24 @@ module Homebrew
     end
 
     HOMEBREW_LIBRARY_PATH.cd do
+      ENV.delete("HOMEBREW_COLOR")
+      ENV.delete("HOMEBREW_NO_COLOR")
       ENV.delete("HOMEBREW_VERBOSE")
+      ENV.delete("HOMEBREW_DEBUG")
       ENV.delete("VERBOSE")
       ENV.delete("HOMEBREW_CASK_OPTS")
       ENV.delete("HOMEBREW_TEMP")
-      ENV.delete("HOMEBREW_LINKAGE_CACHE")
+      ENV.delete("HOMEBREW_NO_GITHUB_API")
+      ENV.delete("HOMEBREW_NO_EMOJI")
       ENV["HOMEBREW_NO_ANALYTICS_THIS_RUN"] = "1"
       ENV["HOMEBREW_DEVELOPER"] = "1"
       ENV["HOMEBREW_NO_COMPAT"] = "1" if args.no_compat?
       ENV["HOMEBREW_TEST_GENERIC_OS"] = "1" if args.generic?
+      ENV["HOMEBREW_TEST_ONLINE"] = "1" if args.online?
 
-      if args.online?
-        ENV["HOMEBREW_TEST_ONLINE"] = "1"
-      else
-        ENV["HOMEBREW_NO_GITHUB_API"] = "1"
-      end
+      # Avoid local configuration messing with tests e.g. git being configured
+      # to use GPG to sign by default
+      ENV["HOME"] = "#{HOMEBREW_LIBRARY_PATH}/test"
 
       if args.coverage?
         ENV["HOMEBREW_TESTS_COVERAGE"] = "1"
@@ -96,10 +99,10 @@ module Homebrew
 
       # Generate seed ourselves and output later to avoid multiple different
       # seeds being output when running parallel tests.
-      seed = args.seed ? args.seed : rand(0xFFFF).to_i
+      seed = args.seed || rand(0xFFFF).to_i
 
-      args = ["-I", HOMEBREW_LIBRARY_PATH/"test"]
-      args += %W[
+      bundle_args = ["-I", HOMEBREW_LIBRARY_PATH/"test"]
+      bundle_args += %W[
         --seed #{seed}
         --color
         --require spec_helper
@@ -109,24 +112,25 @@ module Homebrew
       ]
 
       unless OS.mac?
-        args << "--tag" << "~needs_macos"
+        bundle_args << "--tag" << "~needs_macos" << "--tag" << "~cask"
         files = files.reject { |p| p =~ %r{^test/(os/mac|cask)(/.*|_spec\.rb)$} }
       end
 
       unless OS.linux?
-        args << "--tag" << "~needs_linux"
+        bundle_args << "--tag" << "~needs_linux"
         files = files.reject { |p| p =~ %r{^test/os/linux(/.*|_spec\.rb)$} }
       end
 
       puts "Randomized with seed #{seed}"
 
       if parallel
-        system "bundle", "exec", "parallel_rspec", *opts, "--", *args, "--", *files
+        system "bundle", "exec", "parallel_rspec", *opts, "--", *bundle_args, "--", *files
       else
-        system "bundle", "exec", "rspec", *args, "--", *files
+        system "bundle", "exec", "rspec", *bundle_args, "--", *files
       end
 
       return if $CHILD_STATUS.success?
+
       Homebrew.failed = true
     end
   end

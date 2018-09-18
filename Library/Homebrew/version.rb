@@ -3,6 +3,10 @@ require "version/null"
 class Version
   include Comparable
 
+  def self.formula_optionally_versioned_regex(name, full: true)
+    /#{"^" if full}#{Regexp.escape(name)}(@\d[\d.]*)?#{"$" if full}/
+  end
+
   class Token
     include Comparable
 
@@ -364,6 +368,7 @@ class Version
     unless val.respond_to?(:to_str)
       raise TypeError, "Version value must be a string; got a #{val.class} (#{val})"
     end
+
     @version = val.to_str
   end
 
@@ -387,6 +392,7 @@ class Version
     other = Version.new(other.to_s) if other.is_a? Integer
     return 1 if other.nil?
 
+    return 1 if other.respond_to?(:null?) && other.null?
     return unless other.is_a?(Version)
     return 0 if version == other.version
     return 1 if head? && !other.head?
@@ -410,9 +416,11 @@ class Version
         return a <=> b
       elsif a.numeric?
         return 1 if a > NULL_TOKEN
+
         l += 1
       elsif b.numeric?
         return -1 if b > NULL_TOKEN
+
         r += 1
       else
         return a <=> b

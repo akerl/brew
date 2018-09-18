@@ -21,7 +21,7 @@ module Utils
     end
 
     # quote values. quoting keys is overkill
-    def export_value(shell, key, value)
+    def export_value(key, value, shell = preferred)
       case shell
       when :bash, :ksh, :sh, :zsh
         "export #{key}=\"#{sh_quote(value)}\""
@@ -78,6 +78,7 @@ module Utils
       # ruby's implementation of shell_escape
       str = str.to_s
       return "''" if str.empty?
+
       str = str.dup
       # anything that isn't a known safe character is padded
       str.gsub!(UNSAFE_SHELL_CHAR, "\\\\" + "\\1")
@@ -90,6 +91,7 @@ module Utils
       # ruby's implementation of shell_escape
       str = str.to_s
       return "''" if str.empty?
+
       str = str.dup
       # anything that isn't a known safe character is padded
       str.gsub!(UNSAFE_SHELL_CHAR, "\\\\" + "\\1")

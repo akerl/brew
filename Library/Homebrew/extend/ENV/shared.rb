@@ -23,7 +23,7 @@ module SharedEnvExtension
     MACOSX_DEPLOYMENT_TARGET SDKROOT DEVELOPER_DIR
     CMAKE_PREFIX_PATH CMAKE_INCLUDE_PATH CMAKE_FRAMEWORK_PATH
     GOBIN GOPATH GOROOT PERL_MB_OPT PERL_MM_OPT
-    LIBRARY_PATH
+    LIBRARY_PATH LD_LIBRARY_PATH LD_PRELOAD LD_RUN_PATH
   ].freeze
 
   # @private
@@ -52,6 +52,10 @@ module SharedEnvExtension
 
   def remove_from_cflags(val)
     remove CC_FLAG_VARS, val
+  end
+
+  def append_to_cccfg(value)
+    append("HOMEBREW_CCCFG", value, "")
   end
 
   def append(keys, value, separator = " ")
@@ -91,6 +95,7 @@ module SharedEnvExtension
   # (e.g. <pre>ENV.prepend_path "PATH", which("emacs").dirname</pre>)
   def prepend_path(key, path)
     return if %w[/usr/bin /bin /usr/sbin /sbin].include? path.to_s
+
     self[key] = PATH.new(self[key]).prepend(path)
   end
 
@@ -102,8 +107,10 @@ module SharedEnvExtension
 
   def remove(keys, value)
     return if value.nil?
+
     Array(keys).each do |key|
       next unless self[key]
+
       self[key] = self[key].sub(value, "")
       delete(key) if self[key].empty?
     end
@@ -147,7 +154,7 @@ module SharedEnvExtension
 
   # Outputs the current compiler.
   # @return [Symbol]
-  # <pre># Do something only for clang
+  # <pre># Do something only for the system clang
   # if ENV.compiler == :clang
   #   # modify CFLAGS CXXFLAGS OBJCFLAGS OBJCXXFLAGS in one go:
   #   ENV.append_to_cflags "-I ./missing/includes"
@@ -219,6 +226,7 @@ module SharedEnvExtension
     # building with an alternative Fortran compiler without optimization flags,
     # despite it often being the Homebrew-provided one set up in the first call.
     return if @fortran_setup_done
+
     @fortran_setup_done = true
 
     flags = []
@@ -290,6 +298,7 @@ module SharedEnvExtension
     end
 
     return if gcc_formula.opt_prefix.exist?
+
     raise <<~EOS
       The requested Homebrew GCC was not installed. You must:
         brew install #{gcc_formula.full_name}
@@ -300,6 +309,19 @@ module SharedEnvExtension
 
   # A no-op until we enable this by default again (which we may never do).
   def permit_weak_imports; end
+
+  # @private
+  def compiler_any_clang?(cc = compiler)
+    %w[clang llvm_clang].include?(cc.to_s)
+  end
+
+  # @private
+  def compiler_with_cxx11_support?(cc)
+    return if compiler_any_clang?(cc)
+
+    version = cc[/^gcc-(\d+(?:\.\d+)?)$/, 1]
+    version && Version.create(version) >= Version.create("4.8")
+  end
 
   private
 
@@ -328,12 +350,8 @@ module SharedEnvExtension
 
   def check_for_compiler_universal_support
     return unless homebrew_cc =~ GNU_GCC_REGEXP
-    raise "Non-Apple GCC can't build universal binaries"
-  end
 
-  def gcc_with_cxx11_support?(cc)
-    version = cc[/^gcc-(\d+(?:\.\d+)?)$/, 1]
-    version && Version.create(version) >= Version.create("4.8")
+    raise "Non-Apple GCC can't build universal binaries"
   end
 end
 

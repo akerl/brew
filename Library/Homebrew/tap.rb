@@ -3,9 +3,9 @@ require "readall"
 
 # a {Tap} is used to extend the formulae provided by Homebrew core.
 # Usually, it's synced with a remote git repository. And it's likely
-# a Github repository with the name of `user/homebrew-repo`. In such
+# a GitHub repository with the name of `user/homebrew-repo`. In such
 # case, `user/repo` will be used as the {#name} of this {Tap}, where
-# {#user} represents Github username and {#repo} represents repository
+# {#user} represents GitHub username and {#repo} represents repository
 # name without leading `homebrew-`.
 class Tap
   extend Cachable
@@ -27,7 +27,7 @@ class Tap
 
     # We special case homebrew and linuxbrew so that users don't have to shift in a terminal.
     user = user.capitalize if ["homebrew", "linuxbrew"].include? user
-    repo = repo.strip_prefix "homebrew-"
+    repo = repo.delete_prefix "homebrew-"
 
     if ["Homebrew", "Linuxbrew"].include?(user) && ["core", "homebrew"].include?(repo)
       return CoreTap.instance
@@ -40,15 +40,20 @@ class Tap
   def self.from_path(path)
     match = File.expand_path(path).match(HOMEBREW_TAP_PATH_REGEX)
     raise "Invalid tap path '#{path}'" unless match
+
     fetch(match[:user], match[:repo])
   rescue
     # No need to error as a nil tap is sufficient to show failure.
     nil
   end
 
+  def self.default_cask_tap
+    @default_cask_tap ||= fetch("Homebrew", "cask")
+  end
+
   extend Enumerable
 
-  # The user name of this {Tap}. Usually, it's the Github username of
+  # The user name of this {Tap}. Usually, it's the GitHub username of
   # this #{Tap}'s remote repository.
   attr_reader :user
 
@@ -84,8 +89,10 @@ class Tap
   # clear internal cache
   def clear_cache
     @remote = nil
+    @repo_var = nil
     @formula_dir = nil
     @cask_dir = nil
+    @command_dir = nil
     @formula_files = nil
     @alias_dir = nil
     @alias_files = nil
@@ -103,6 +110,7 @@ class Tap
   # e.g. `https://github.com/user/homebrew-repo`
   def remote
     raise TapUnavailableError, name unless installed?
+
     @remote ||= path.git_origin
   end
 
@@ -113,7 +121,7 @@ class Tap
 
   def repo_var
     @repo_var ||= path.to_s
-                      .strip_prefix(TAP_DIRECTORY.to_s)
+                      .delete_prefix(TAP_DIRECTORY.to_s)
                       .tr("^A-Za-z0-9", "_")
                       .upcase
   end
@@ -126,30 +134,35 @@ class Tap
   # git branch for this {Tap}.
   def git_branch
     raise TapUnavailableError, name unless installed?
+
     path.git_branch
   end
 
   # git HEAD for this {Tap}.
   def git_head
     raise TapUnavailableError, name unless installed?
+
     path.git_head
   end
 
   # git HEAD in short format for this {Tap}.
   def git_short_head
     raise TapUnavailableError, name unless installed?
+
     path.git_short_head
   end
 
   # time since git last commit for this {Tap}.
   def git_last_commit
     raise TapUnavailableError, name unless installed?
+
     path.git_last_commit
   end
 
   # git last commit date for this {Tap}.
   def git_last_commit_date
     raise TapUnavailableError, name unless installed?
+
     path.git_last_commit_date
   end
 
@@ -157,6 +170,7 @@ class Tap
   # e.g. `https://github.com/user/homebrew-repo/issues`
   def issues_url
     return unless official? || !custom_remote?
+
     "#{default_remote}/issues"
   end
 
@@ -166,8 +180,10 @@ class Tap
 
   def version_string
     return "N/A" unless installed?
+
     pretty_revision = git_short_head
     return "(no git repository)" unless pretty_revision
+
     "(git revision #{pretty_revision}; last commit #{git_last_commit_date})"
   end
 
@@ -179,6 +195,7 @@ class Tap
   # True if the remote of this {Tap} is a private repository.
   def private?
     return @private if instance_variable_defined?(:@private)
+
     @private = read_or_set_private_config
   end
 
@@ -186,6 +203,7 @@ class Tap
   def config
     @config ||= begin
       raise TapUnavailableError, name unless installed?
+
       TapConfig.new(self)
     end
   end
@@ -265,7 +283,7 @@ class Tap
           raise "Cannot tap #{name}: invalid syntax in tap!"
         end
       end
-    rescue Interrupt, ErrorDuringExecution, RuntimeError
+    rescue Interrupt, RuntimeError
       ignore_interrupts do
         # wait for git to possibly cleanup the top directory when interrupt happens.
         sleep 0.1
@@ -279,13 +297,14 @@ class Tap
 
     link_completions_and_manpages
 
-    formula_count = formula_files.size
-    puts "Tapped #{Formatter.pluralize(formula_count, "formula")} (#{path.abv})" unless quiet
+    formatted_contents = Formatter.comma_and(*contents)&.prepend(" ")
+    puts "Tapped#{formatted_contents} (#{path.abv})." unless quiet
     Descriptions.cache_formulae(formula_names)
 
     return if options[:clone_target]
     return unless private?
     return if quiet
+
     puts <<~EOS
       It looks like you tapped a private repository. To avoid entering your
       credentials each time you update, you can use git HTTP credential
@@ -306,27 +325,31 @@ class Tap
     require "descriptions"
     raise TapUnavailableError, name unless installed?
 
-    puts "Untapping #{name}... (#{path.abv})"
+    puts "Untapping #{name}..."
+
+    abv = path.abv
+    formatted_contents = Formatter.comma_and(*contents)&.prepend(" ")
+
     unpin if pinned?
-    formula_count = formula_files.size
     Descriptions.uncache_formulae(formula_names)
     Utils::Link.unlink_manpages(path)
     Utils::Link.unlink_completions(path)
     path.rmtree
     path.parent.rmdir_if_possible
-    puts "Untapped #{Formatter.pluralize(formula_count, "formula")}"
+    puts "Untapped#{formatted_contents} (#{abv})."
     clear_cache
   end
 
   # True if the {#remote} of {Tap} is customized.
   def custom_remote?
     return true unless remote
+
     remote.casecmp(default_remote).nonzero?
   end
 
   # path to the directory of all {Formula} files for this {Tap}.
   def formula_dir
-    @formula_dir ||= potential_formula_dirs.detect(&:directory?) || path/"Formula"
+    @formula_dir ||= potential_formula_dirs.find(&:directory?) || path/"Formula"
   end
 
   def potential_formula_dirs
@@ -336,6 +359,24 @@ class Tap
   # path to the directory of all {Cask} files for this {Tap}.
   def cask_dir
     @cask_dir ||= path/"Casks"
+  end
+
+  def contents
+    contents = []
+
+    if (command_count = command_files.count).positive?
+      contents << Formatter.pluralize(command_count, "command")
+    end
+
+    if (cask_count = cask_files.count).positive?
+      contents << Formatter.pluralize(cask_count, "cask")
+    end
+
+    if (formula_count = formula_files.count).positive?
+      contents << Formatter.pluralize(formula_count, "formula")
+    end
+
+    contents
   end
 
   # an array of all {Formula} files of this {Tap}.
@@ -401,6 +442,7 @@ class Tap
   # @private
   def alias_table
     return @alias_table if @alias_table
+
     @alias_table = {}
     alias_files.each do |alias_file|
       @alias_table[alias_file_to_name(alias_file)] = formula_file_to_name(alias_file.resolved_path)
@@ -412,6 +454,7 @@ class Tap
   # @private
   def alias_reverse_table
     return @alias_reverse_table if @alias_reverse_table
+
     @alias_reverse_table = {}
     alias_table.each do |alias_name, formula_name|
       @alias_reverse_table[formula_name] ||= []
@@ -420,9 +463,24 @@ class Tap
     @alias_reverse_table
   end
 
+  def command_dir
+    @command_dir ||= path/"cmd"
+  end
+
+  def command_file?(file)
+    file = Pathname.new(file) unless file.is_a? Pathname
+    file = file.expand_path(path)
+    file.parent == command_dir && file.basename.to_s.match?(/^brew(cask)?-/) &&
+      (file.executable? || file.extname == ".rb")
+  end
+
   # an array of all commands files of this {Tap}.
   def command_files
-    @command_files ||= Pathname.glob("#{path}/cmd/brew-*").select(&:executable?)
+    @command_files ||= if command_dir.directory?
+      command_dir.children.select(&method(:command_file?))
+    else
+      []
+    end
   end
 
   # path to the pin record for this {Tap}.
@@ -434,6 +492,7 @@ class Tap
   # True if this {Tap} has been pinned.
   def pinned?
     return @pinned if instance_variable_defined?(:@pinned)
+
     @pinned = pinned_symlink_path.directory?
   end
 
@@ -441,6 +500,7 @@ class Tap
   def pin
     raise TapUnavailableError, name unless installed?
     raise TapPinStatusError.new(name, true) if pinned?
+
     pinned_symlink_path.make_relative_symlink(path)
     @pinned = true
   end
@@ -449,6 +509,7 @@ class Tap
   def unpin
     raise TapUnavailableError, name unless installed?
     raise TapPinStatusError.new(name, false) unless pinned?
+
     pinned_symlink_path.delete
     pinned_symlink_path.parent.rmdir_if_possible
     pinned_symlink_path.parent.parent.rmdir_if_possible
@@ -576,6 +637,7 @@ class CoreTap < Tap
 
   def self.ensure_installed!
     return if instance.installed?
+
     safe_system HOMEBREW_BREW_FILE, "tap", instance.name
   end
 

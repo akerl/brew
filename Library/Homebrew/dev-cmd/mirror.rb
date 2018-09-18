@@ -26,12 +26,12 @@ module Homebrew
       bintray_repo_url = "https://api.bintray.com/packages/homebrew/mirror"
       package_url = "#{bintray_repo_url}/#{bintray_package}"
 
-      unless system "curl", "--silent", "--fail", "--output", "/dev/null", package_url
-        package_blob = <<~EOS
+      unless system curl_executable, "--silent", "--fail", "--output", "/dev/null", package_url
+        package_blob = <<~JSON
           {"name": "#{bintray_package}",
            "public_download_numbers": true,
            "public_stats": true}
-        EOS
+        JSON
         curl "--silent", "--fail", "--user", "#{bintray_user}:#{bintray_key}",
              "--header", "Content-Type: application/json",
              "--data", package_blob, bintray_repo_url

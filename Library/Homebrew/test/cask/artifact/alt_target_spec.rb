@@ -1,17 +1,17 @@
-describe Hbc::Artifact::App, :cask do
+describe Cask::Artifact::App, :cask do
   describe "activate to alternate target" do
-    let(:cask) { Hbc::CaskLoader.load(cask_path("with-alt-target")) }
+    let(:cask) { Cask::CaskLoader.load(cask_path("with-alt-target")) }
 
     let(:install_phase) {
       lambda do
         cask.artifacts.select { |a| a.is_a?(described_class) }.each do |artifact|
-          artifact.install_phase(command: Hbc::NeverSudoSystemCommand, force: false)
+          artifact.install_phase(command: NeverSudoSystemCommand, force: false)
         end
       end
     }
 
     let(:source_path) { cask.staged_path.join("Caffeine.app") }
-    let(:target_path) { Hbc::Config.global.appdir.join("AnotherName.app") }
+    let(:target_path) { Cask::Config.global.appdir.join("AnotherName.app") }
 
     before do
       InstallHelper.install_without_artifacts(cask)
@@ -29,9 +29,9 @@ describe Hbc::Artifact::App, :cask do
 
     describe "when app is in a subdirectory" do
       let(:cask) {
-        Hbc::Cask.new("subdir") do
+        Cask::Cask.new("subdir") do
           url "file://#{TEST_FIXTURE_DIR}/cask/caffeine.zip"
-          homepage "http://example.com/local-caffeine"
+          homepage "https://example.com/local-caffeine"
           version "1.2.3"
           sha256 "67cdb8a02803ef37fdbf7e0be205863172e41a561ca446cd84f0d7ab35a99d94"
           app "subdir/Caffeine.app", target: "AnotherName.app"
@@ -58,14 +58,14 @@ describe Hbc::Artifact::App, :cask do
       expect(target_path).to be_a_directory
       expect(source_path).not_to exist
 
-      expect(Hbc::Config.global.appdir.join("Caffeine Deluxe.app")).not_to exist
+      expect(Cask::Config.global.appdir.join("Caffeine Deluxe.app")).not_to exist
       expect(cask.staged_path.join("Caffeine Deluxe.app")).to be_a_directory
     end
 
     it "avoids clobbering an existing app by moving over it" do
       target_path.mkpath
 
-      expect(install_phase).to raise_error(Hbc::CaskError, "It seems there is already an App at '#{target_path}'.")
+      expect(install_phase).to raise_error(Cask::CaskError, "It seems there is already an App at '#{target_path}'.")
 
       expect(source_path).to be_a_directory
       expect(target_path).to be_a_directory

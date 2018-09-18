@@ -20,14 +20,14 @@ module Homebrew
   TARGET_DOC_PATH = HOMEBREW_REPOSITORY/"docs"
 
   def man
-    @args = Homebrew::CLI::Parser.parse do
+    Homebrew::CLI::Parser.parse do
       switch "--fail-if-changed"
       switch "--link"
     end
 
     raise UsageError unless ARGV.named.empty?
 
-    if @args.link?
+    if args.link?
       odie "`brew man --link` is now done automatically by `brew update`."
     end
 
@@ -35,7 +35,7 @@ module Homebrew
 
     if system "git", "-C", HOMEBREW_REPOSITORY, "diff", "--quiet", "docs/Manpage.md", "manpages"
       puts "No changes to manpage output detected."
-    elsif @args.fail_if_changed?
+    elsif args.fail_if_changed?
       Homebrew.failed = true
     end
   end
@@ -66,16 +66,24 @@ module Homebrew
     variables[:commands] = path_glob_commands("#{HOMEBREW_LIBRARY_PATH}/cmd/*.{rb,sh}")
     variables[:developer_commands] = path_glob_commands("#{HOMEBREW_LIBRARY_PATH}/dev-cmd/*.{rb,sh}")
     readme = HOMEBREW_REPOSITORY/"README.md"
-    variables[:lead_maintainer] = readme.read[/(Homebrew's lead maintainer .*\.)/, 1]
-                                        .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
-    variables[:core_maintainer] = readme.read[%r{(halyard/homebrew-core's lead maintainer .*\.)}, 1]
-                                        .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
-    variables[:brew_maintainers] = readme.read[%r{(Homebrew/brew's other current maintainers .*\.)}, 1]
-                                         .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
-    variables[:core_maintainers] = readme.read[%r{(Homebrew/homebrew-core's other current maintainers .*\.)}, 1]
-                                         .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
-    variables[:former_maintainers] = readme.read[/(Former maintainers .*\.)/, 1]
-                                           .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
+    variables[:lead_maintainer] =
+      readme.read[/(Homebrew's lead maintainer .*\.)/, 1]
+            .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
+    variables[:leadership] =
+      readme.read[/(Homebrew's project leadership committee .*\.)/, 1]
+            .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
+    variables[:brew_maintainers] =
+      readme.read[%r{(Homebrew/brew's other current maintainers .*\.)}, 1]
+            .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
+    variables[:linux_maintainers] =
+      readme.read[%r{(Homebrew/brew's Linux support \(and Linuxbrew\) maintainers are .*\.)}, 1]
+            .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
+    variables[:core_maintainers] =
+      readme.read[%r{(Homebrew/homebrew-core's other current maintainers .*\.)}, 1]
+            .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
+    variables[:former_maintainers] =
+      readme.read[/(Former maintainers .*\.)/, 1]
+            .gsub(/\[([^\]]+)\]\([^)]+\)/, '\1')
 
     variables[:homebrew_bundle] = help_output(:bundle)
     variables[:homebrew_services] = help_output(:services)
@@ -94,7 +102,7 @@ module Homebrew
 
     # Set the manpage date to the existing one if we're checking for changes.
     # This avoids the only change being e.g. a new date.
-    date = if @args.fail_if_changed? &&
+    date = if args.fail_if_changed? &&
               target.extname == ".1" && target.exist?
       /"(\d{1,2})" "([A-Z][a-z]+) (\d{4})" "#{organisation}" "#{manual}"/ =~ target.read
       Date.parse("#{Regexp.last_match(1)} #{Regexp.last_match(2)} #{Regexp.last_match(3)}")
@@ -117,6 +125,7 @@ module Homebrew
       ronn.write markup
       ronn.close_write
       ronn_output = ronn.read
+      odie "Got no output from ronn!" unless ronn_output
       ronn_output.gsub!(%r{</var>`(?=[.!?,;:]?\s)}, "").gsub!(%r{</?var>}, "`") if format_flag == "--markdown"
       target.atomic_write ronn_output
     end

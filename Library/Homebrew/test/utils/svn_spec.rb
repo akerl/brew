@@ -31,10 +31,11 @@ describe Utils do
       end
 
       it "returns true when remote exists", :needs_network, :needs_svn do
-        remote = "http://github.com/Homebrew/install"
-        svn = HOMEBREW_SHIMS_PATH/"scm/svn"
-
-        HOMEBREW_CACHE.cd { system svn, "checkout", remote }
+        HOMEBREW_CACHE.cd do
+          system HOMEBREW_SHIMS_PATH/"scm/svn", "checkout",
+            "--non-interactive", "--trust-server-cert", "--quiet",
+            "https://github.com/Homebrew/install"
+        end
 
         expect(described_class).to be_svn_remote_exists(HOMEBREW_CACHE/"install")
       end

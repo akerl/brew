@@ -17,7 +17,7 @@ describe Formula do
   describe "::new" do
     let(:klass) do
       Class.new(described_class) do
-        url "http://example.com/foo-1.0.tar.gz"
+        url "https://example.com/foo-1.0.tar.gz"
       end
     end
 
@@ -510,22 +510,22 @@ describe Formula do
 
   specify "spec integration" do
     f = formula do
-      homepage "http://example.com"
+      homepage "https://example.com"
 
-      url "http://example.com/test-0.1.tbz"
-      mirror "http://example.org/test-0.1.tbz"
+      url "https://example.com/test-0.1.tbz"
+      mirror "https://example.org/test-0.1.tbz"
       sha256 TEST_SHA256
 
-      head "http://example.com/test.git", tag: "foo"
+      head "https://example.com/test.git", tag: "foo"
 
       devel do
-        url "http://example.com/test-0.2.tbz"
-        mirror "http://example.org/test-0.2.tbz"
+        url "https://example.com/test-0.2.tbz"
+        mirror "https://example.org/test-0.2.tbz"
         sha256 TEST_SHA256
       end
     end
 
-    expect(f.homepage).to eq("http://example.com")
+    expect(f.homepage).to eq("https://example.com")
     expect(f.version).to eq(Version.create("0.1"))
     expect(f).to be_stable
     expect(f.stable.version).to eq(Version.create("0.1"))
@@ -770,6 +770,20 @@ describe Formula do
       allow(LinkageChecker).to receive(:new).and_return(linkage_checker)
 
       expect(formula.runtime_dependencies.map(&:name)).to eq [dependency.name]
+    end
+
+    it "handles bad tab runtime_dependencies" do
+      formula = Class.new(Testball).new
+
+      formula.brew { formula.install }
+      tab = Tab.create(formula, DevelopmentTools.default_compiler, :libcxx)
+      tab.runtime_dependencies = ["foo"]
+      tab.write
+
+      keg = Keg.for(formula.installed_prefix)
+      keg.link
+
+      expect(formula.runtime_dependencies.map(&:name)).to be_empty
     end
   end
 
@@ -1285,6 +1299,17 @@ describe Formula do
           expect(f.outdated_kegs(fetch_head: true)).to be_empty
         ensure
           testball_repo.rmtree if testball_repo.exist?
+        end
+      end
+    end
+
+    describe "#mkdir" do
+      let(:dst) { mktmpdir }
+
+      it "creates intermediate directories" do
+        f.mkdir dst/"foo/bar/baz" do
+          expect(dst/"foo/bar/baz").to exist, "foo/bar/baz was not created"
+          expect(dst/"foo/bar/baz").to be_a_directory, "foo/bar/baz was not a directory structure"
         end
       end
     end

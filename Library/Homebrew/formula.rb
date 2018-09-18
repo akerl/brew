@@ -17,6 +17,7 @@ require "linkage_checker"
 require "extend/ENV"
 require "language/python"
 require "tab"
+require "mktemp"
 
 # A formula provides instructions and metadata for Homebrew to install a piece
 # of software. Every Homebrew formula is a {Formula}.
@@ -213,6 +214,7 @@ class Formula
   def active_spec=(spec_sym)
     spec = send(spec_sym)
     raise FormulaSpecificationError, "#{spec_sym} spec is not available for #{full_name}" unless spec
+
     @active_spec = spec
     @active_spec_sym = spec_sym
     validate_attributes!
@@ -234,6 +236,7 @@ class Formula
   def spec_eval(name)
     spec = self.class.send(name)
     return unless spec.url
+
     spec.owner = self
     instance_variable_set("@#{name}", spec)
   end
@@ -255,6 +258,7 @@ class Formula
 
     val = version.respond_to?(:to_str) ? version.to_str : version
     return unless val.nil? || val.empty? || val =~ /\s/
+
     raise FormulaValidationError.new(full_name, :version, val)
   end
 
@@ -267,6 +271,7 @@ class Formula
     path = build.source["path"] if build.is_a?(Tab)
     return unless path =~ %r{#{HOMEBREW_TAP_DIR_REGEX}/Aliases}
     return unless File.symlink?(path)
+
     path
   end
 
@@ -358,7 +363,15 @@ class Formula
     return unless head.downloader.is_a?(VCSDownloadStrategy)
     return unless head.downloader.cached_location.exist?
 
-    head.version.update_commit(head.downloader.last_commit)
+    path = if ENV["HOMEBREW_ENV"]
+      ENV["PATH"]
+    else
+      ENV["HOMEBREW_PATH"]
+    end
+
+    with_env(PATH: path) do
+      head.version.update_commit(head.downloader.last_commit)
+    end
   end
 
   # The {PkgVersion} for this formula with {version} and {#revision} information.
@@ -376,8 +389,12 @@ class Formula
     return [] if versioned_formula?
 
     Pathname.glob(path.to_s.gsub(/\.rb$/, "@*.rb")).map do |path|
-      Formula[path.basename(".rb").to_s]
-    end.sort
+      begin
+        Formula[path.basename(".rb").to_s]
+      rescue FormulaUnavailableError
+        nil
+      end
+    end.compact.sort
   end
 
   # A named Resource for the currently active {SoftwareSpec}.
@@ -487,6 +504,7 @@ class Formula
 
     if options[:fetch_head]
       return false unless head&.downloader.is_a?(VCSDownloadStrategy)
+
       downloader = head.downloader
       downloader.shutup! unless ARGV.verbose?
       downloader.commit_outdated?(version.version.commit)
@@ -544,12 +562,14 @@ class Formula
   # Is formula's linked keg points to the prefix.
   def prefix_linked?(v = pkg_version)
     return false unless linked?
+
     linked_keg.resolved_path == versioned_prefix(v)
   end
 
   # {PkgVersion} of the linked keg for the formula.
   def linked_version
     return unless linked?
+
     Keg.for(linked_keg).version
   end
 
@@ -1023,6 +1043,7 @@ class Formula
   # see gettext.rb for an example
   def keg_only?
     return false unless keg_only_reason
+
     keg_only_reason.valid?
   end
 
@@ -1039,6 +1060,7 @@ class Formula
   # @private
   def skip_clean?(path)
     return true if path.extname == ".la" && self.class.skip_clean_paths.include?(:la)
+
     to_check = path.relative_path_from(prefix).to_s
     self.class.skip_clean_paths.include? to_check
   end
@@ -1052,6 +1074,7 @@ class Formula
   def link_overwrite?(path)
     # Don't overwrite files not created by Homebrew.
     return false unless path.stat.uid == HOMEBREW_BREW_FILE.stat.uid
+
     # Don't overwrite files belong to other keg except when that
     # keg's formula is deleted.
     begin
@@ -1060,7 +1083,9 @@ class Formula
       # file doesn't belong to any keg.
     else
       tab_tap = Tab.for_keg(keg).tap
-      return false if tab_tap.nil? # this keg doesn't below to any core/tap formula, most likely coming from a DIY install.
+      # this keg doesn't below to any core/tap formula, most likely coming from a DIY install.
+      return false if tab_tap.nil?
+
       begin
         Formulary.factory(keg.name)
       rescue FormulaUnavailableError # rubocop:disable Lint/HandleExceptions
@@ -1091,6 +1116,7 @@ class Formula
   # @private
   def patch
     return if patchlist.empty?
+
     ohai "Patching"
     patchlist.each(&:apply)
   end
@@ -1106,7 +1132,7 @@ class Formula
 
       begin
         yield self, staging
-      rescue StandardError
+      rescue
         staging.retain! if ARGV.interactive? || ARGV.debug?
         raise
       ensure
@@ -1124,6 +1150,7 @@ class Formula
     return unless oldname
     return unless (oldname_rack = HOMEBREW_CELLAR/oldname).exist?
     return unless oldname_rack.resolved_path == rack
+
     @oldname_lock = FormulaLock.new(oldname)
     @oldname_lock.lock
   end
@@ -1149,6 +1176,7 @@ class Formula
   def outdated_kegs(options = {})
     @outdated_kegs ||= Hash.new do |cache, key|
       raise Migrator::MigrationNeededError, self if migration_needed?
+
       cache[key] = _outdated_kegs(key)
     end
     @outdated_kegs[options]
@@ -1198,6 +1226,7 @@ class Formula
   def installed_alias_target_changed?
     target = current_installed_alias_target
     return false unless target
+
     target.name != name
   end
 
@@ -1223,6 +1252,7 @@ class Formula
     # it doesn't make sense to say that other formulae are older versions of it
     # because we don't know which came first.
     return [] if alias_path.nil? || installed_alias_target_changed?
+
     self.class.installed_with_alias_path(alias_path).reject { |f| f.name == name }
   end
 
@@ -1274,6 +1304,7 @@ class Formula
   # @private
   def <=>(other)
     return unless other.is_a?(Formula)
+
     name <=> other.name
   end
 
@@ -1359,7 +1390,7 @@ class Formula
     files.each do |file|
       begin
         yield Formulary.factory(file)
-      rescue StandardError => e
+      rescue => e
         # Don't let one broken formula break commands. But do complain.
         onoe "Failed to import: #{file}"
         puts e
@@ -1405,6 +1436,7 @@ class Formula
 
   def self.installed_with_alias_path(alias_path)
     return [] if alias_path.nil?
+
     installed.select { |f| f.installed_alias_path == alias_path }
   end
 
@@ -1464,12 +1496,14 @@ class Formula
   # @private
   def tap?
     return false unless tap
+
     !tap.core_tap?
   end
 
   # @private
   def print_tap_action(options = {})
     return unless tap?
+
     verb = options[:verb] || "Installing"
     ohai "#{verb} #{name} from #{tap}"
   end
@@ -1510,49 +1544,48 @@ class Formula
 
   # Returns a list of Dependency objects that are required at runtime.
   # @private
-  def runtime_dependencies(read_from_tab: true)
+  def runtime_dependencies(read_from_tab: true, undeclared: true)
     if read_from_tab &&
+       undeclared &&
        (keg = opt_or_installed_prefix_keg) &&
        (tab_deps = keg.runtime_dependencies)
-      return tab_deps.map { |d| Dependency.new d["full_name"] }.compact
+      return tab_deps.map do |d|
+        full_name = d["full_name"]
+        next unless full_name
+
+        Dependency.new full_name
+      end.compact
     end
+
+    return declared_runtime_dependencies unless undeclared
 
     declared_runtime_dependencies | undeclared_runtime_dependencies
   end
 
-  # Returns a list of Dependency objects that are declared in the formula.
+  # Returns a list of Formula objects that are required at runtime.
   # @private
-  def declared_runtime_dependencies
-    recursive_dependencies do |_, dependency|
-      Dependency.prune if dependency.build?
-      Dependency.prune if !dependency.required? && build.without?(dependency)
-    end
-  end
-
-  # Returns a list of Dependency objects that are not declared in the formula
-  # but the formula links to.
-  # @private
-  def undeclared_runtime_dependencies
-    keg = opt_or_installed_prefix_keg
-    return [] unless keg
-
-    undeclared_deps = CacheStoreDatabase.use(:linkage) do |db|
-      linkage_checker = LinkageChecker.new(
-        keg, self, cache_db: db, use_cache: !ENV["HOMEBREW_LINKAGE_CACHE"].nil?
-      )
-      linkage_checker.undeclared_deps.map { |n| Dependency.new(n) }
-    end
-
-    undeclared_deps
+  def runtime_formula_dependencies(read_from_tab: true, undeclared: true)
+    runtime_dependencies(
+      read_from_tab: read_from_tab,
+      undeclared: undeclared,
+    ).map do |d|
+      begin
+        d.to_formula
+      rescue FormulaUnavailableError
+        nil
+      end
+    end.compact
   end
 
   # Returns a list of formulae depended on by this formula that aren't
   # installed
   def missing_dependencies(hide: nil)
     hide ||= []
-    runtime_dependencies.map(&:to_formula).select do |d|
-      hide.include?(d.name) || d.installed_prefixes.empty?
+    runtime_formula_dependencies.select do |f|
+      hide.include?(f.name) || f.installed_prefixes.empty?
     end
+  # If we're still getting unavailable formulae at this stage the best we can
+  # do is just return no results.
   rescue FormulaUnavailableError
     []
   end
@@ -1596,6 +1629,7 @@ class Formula
     %w[stable devel].each do |spec_sym|
       next unless spec = send(spec_sym)
       next unless spec.bottle_defined?
+
       bottle_spec = spec.bottle_specification
       bottle_info = {
         "rebuild" => bottle_spec.rebuild,
@@ -1607,7 +1641,7 @@ class Formula
       bottle_spec.collector.keys.each do |os|
         checksum = bottle_spec.collector[os]
         bottle_info["files"][os] = {
-          "url" => "#{bottle_spec.root_url}/#{Bottle::Filename.create(self, os, bottle_spec.rebuild)}",
+          "url" => "#{bottle_spec.root_url}/#{Bottle::Filename.create(self, os, bottle_spec.rebuild).bintray}",
           checksum.hash_type.to_s => checksum.hexdigest,
         }
       end
@@ -1668,6 +1702,8 @@ class Formula
       PATH: PATH.new(ENV["PATH"], HOMEBREW_PREFIX/"bin"),
       HOMEBREW_PATH: nil,
       _JAVA_OPTIONS: "#{ENV["_JAVA_OPTIONS"]} -Duser.home=#{HOMEBREW_CACHE}/java_cache",
+      GOCACHE: "#{HOMEBREW_CACHE}/go_cache",
+      CARGO_HOME: "#{HOMEBREW_CACHE}/cargo_cache",
     }
 
     ENV.clear_sensitive_environment!
@@ -1722,10 +1758,40 @@ class Formula
     # keep Homebrew's site-packages in sys.path when using system Python
     user_site_packages = home/"Library/Python/2.7/lib/python/site-packages"
     user_site_packages.mkpath
-    (user_site_packages/"homebrew.pth").write <<~EOS
+    (user_site_packages/"homebrew.pth").write <<~PYTHON
       import site; site.addsitedir("#{HOMEBREW_PREFIX}/lib/python2.7/site-packages")
       import sys, os; sys.path = (os.environ["PYTHONPATH"].split(os.pathsep) if "PYTHONPATH" in os.environ else []) + ["#{HOMEBREW_PREFIX}/lib/python2.7/site-packages"] + sys.path
-    EOS
+    PYTHON
+  end
+
+  # Returns a list of Dependency objects that are declared in the formula.
+  # @private
+  def declared_runtime_dependencies
+    recursive_dependencies do |_, dependency|
+      Dependency.prune if dependency.build?
+      next if dependency.required?
+
+      if build.any_args_or_options?
+        Dependency.prune if build.without?(dependency)
+      elsif !dependency.recommended?
+        Dependency.prune
+      end
+    end
+  end
+
+  # Returns a list of Dependency objects that are not declared in the formula
+  # but the formula links to.
+  # @private
+  def undeclared_runtime_dependencies
+    keg = opt_or_installed_prefix_keg
+    return [] unless keg
+
+    undeclared_deps = CacheStoreDatabase.use(:linkage) do |db|
+      linkage_checker = LinkageChecker.new(keg, self, cache_db: db)
+      linkage_checker.undeclared_deps.map { |n| Dependency.new(n) }
+    end
+
+    undeclared_deps
   end
 
   public
@@ -1771,7 +1837,9 @@ class Formula
 
     @exec_count ||= 0
     @exec_count += 1
-    logfn = format("#{logs}/#{active_log_prefix}%02d.%s", @exec_count, File.basename(cmd).split(" ").first)
+    logfn = format("#{logs}/#{active_log_prefix}%02<exec_count>d.%{cmd_base}",
+                   exec_count: @exec_count,
+                   cmd_base: File.basename(cmd).split(" ").first)
     logs.mkpath
 
     File.open(logfn, "w") do |log|
@@ -1794,6 +1862,7 @@ class Formula
               log.puts buf
               # make sure dots printed with interval of at least 1 min.
               next unless (Time.now - last_dot) > 60
+
               print "."
               $stdout.flush
               last_dot = Time.now
@@ -1880,6 +1949,67 @@ class Formula
     eligible_for_cleanup
   end
 
+  # Create a temporary directory then yield. When the block returns,
+  # recursively delete the temporary directory. Passing opts[:retain]
+  # or calling `do |staging| ... staging.retain!` in the block will skip
+  # the deletion and retain the temporary directory's contents.
+  def mktemp(prefix = name, opts = {})
+    Mktemp.new(prefix, opts).run do |staging|
+      yield staging
+    end
+  end
+
+  # A version of `FileUtils.mkdir` that also changes to that folder in
+  # a block.
+  def mkdir(name)
+    result = FileUtils.mkdir_p(name)
+    return result unless block_given?
+
+    FileUtils.chdir name do
+      yield
+    end
+  end
+
+  # Run `scons` using a Homebrew-installed version rather than whatever is
+  # in the `PATH`.
+  def scons(*args)
+    system Formulary.factory("scons").opt_bin/"scons", *args
+  end
+
+  # Run `make` 3.81 or newer.
+  # Uses the system make on Leopard and newer, and the
+  # path to the actually-installed make on Tiger or older.
+  def make(*args)
+    if Utils.popen_read("/usr/bin/make", "--version")
+            .match(/Make (\d\.\d+)/)[1] > "3.80"
+      make_path = "/usr/bin/make"
+    else
+      make = Formula["make"].opt_bin/"make"
+      make_path = if make.exist?
+        make.to_s
+      else
+        (Formula["make"].opt_bin/"gmake").to_s
+      end
+    end
+
+    if superenv?
+      make_name = File.basename(make_path)
+      with_env(HOMEBREW_MAKE: make_name) do
+        system "make", *args
+      end
+    else
+      system make_path, *args
+    end
+  end
+
+  # Run `xcodebuild` without Homebrew's compiler environment variables set.
+  def xcodebuild(*args)
+    removed = ENV.remove_cc_etc
+    system "xcodebuild", *args
+  ensure
+    ENV.update(removed)
+  end
+
   private
 
   # Returns the prefix for a given formula version number.
@@ -1905,7 +2035,7 @@ class Formula
     $stdout.reopen(out)
     $stderr.reopen(out)
     out.close
-    args.collect!(&:to_s)
+    args.map!(&:to_s)
     begin
       exec(cmd, *args)
     rescue
@@ -1930,6 +2060,8 @@ class Formula
         stage_env[:HOME] = env_home
         stage_env[:_JAVA_OPTIONS] =
           "#{ENV["_JAVA_OPTIONS"]} -Duser.home=#{HOMEBREW_CACHE}/java_cache"
+        stage_env[:GOCACHE] = "#{HOMEBREW_CACHE}/go_cache"
+        stage_env[:CARGO_HOME] = "#{HOMEBREW_CACHE}/cargo_cache"
         stage_env[:CURL_HOME] = ENV["CURL_HOME"] || ENV["HOME"]
       end
 
@@ -2051,7 +2183,7 @@ class Formula
     #     `:curl` (normal file download. Will also extract.)
     #     `:nounzip` (without extracting)
     #     `:post` (download via an HTTP POST)
-    #     `S3DownloadStrategy` (download from S3 using signed request)
+    #     `:s3` (download from S3 using signed request)
     #
     # <pre>url "https://packed.sources.and.we.prefer.https.example.com/archive-1.2.3.tar.bz2"</pre>
     # <pre>url "https://some.dont.provide.archives.example.com",
@@ -2153,6 +2285,7 @@ class Formula
     def stable(&block)
       @stable ||= SoftwareSpec.new
       return @stable unless block_given?
+
       @stable.instance_eval(&block)
     end
 
@@ -2171,6 +2304,7 @@ class Formula
     def devel(&block)
       @devel ||= SoftwareSpec.new
       return @devel unless block_given?
+
       @devel.instance_eval(&block)
     end
 

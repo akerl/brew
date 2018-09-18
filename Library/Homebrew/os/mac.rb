@@ -35,12 +35,16 @@ module OS
     end
 
     def latest_stable_version
-      # TODO: bump version when new macOS is released
+      # TODO: bump version when new macOS is released and also update
+      # references in docs/Installation.md and
+      # https://github.com/Homebrew/install/blob/master/install
       Version.new "10.13"
     end
 
     def outdated_release?
-      # TODO: bump version when new macOS is released
+      # TODO: bump version when new macOS is released and also update
+      # references in docs/Installation.md and
+      # https://github.com/Homebrew/install/blob/master/install
       version < "10.11"
     end
 
@@ -85,24 +89,36 @@ module OS
     #      specifically been requested according to the rules above.
 
     def sdk(v = nil)
-      @locator ||= SDKLocator.new
-      begin
-        sdk = if v.nil?
-          (Xcode.version.to_i >= 7) ? @locator.latest_sdk : @locator.sdk_for(version)
-        else
-          @locator.sdk_for v
-        end
-      rescue SDKLocator::NoSDKError
-        sdk = @locator.latest_sdk
+      @locator ||= if Xcode.installed?
+        XcodeSDKLocator.new
+      else
+        CLTSDKLocator.new
       end
-      # Only return an SDK older than the OS version if it was specifically requested
-      sdk if v || (!sdk.nil? && sdk.version >= version)
+
+      @locator.sdk_if_applicable(v)
     end
 
     # Returns the path to an SDK or nil, following the rules set by #sdk.
     def sdk_path(v = nil)
       s = sdk(v)
       s&.path
+    end
+
+    def sdk_path_if_needed(v = nil)
+      # Prefer Xcode SDK when both Xcode and the CLT are installed.
+      # Expected results:
+      # 1. On Xcode-only systems, return the Xcode SDK.
+      # 2. On Xcode-and-CLT systems where headers are provided by the system, return nil.
+      # 3. On CLT-only systems with no CLT SDK, return nil.
+      # 4. On CLT-only systems with a CLT SDK, where headers are provided by the system, return nil.
+      # 5. On CLT-only systems with a CLT SDK, where headers are not provided by the system, return the CLT SDK.
+
+      # If there's no CLT SDK, return early
+      return if MacOS::CLT.installed? && !MacOS::CLT.provides_sdk?
+      # If the CLT is installed and provides headers, return early
+      return if MacOS::CLT.installed? && !MacOS::CLT.separate_header_package?
+
+      sdk_path(v)
     end
 
     # See these issues for some history:
@@ -211,6 +227,8 @@ module OS
       "9.1"   => { clang: "9.0", clang_build: 900 },
       "9.2"   => { clang: "9.0", clang_build: 900 },
       "9.3"   => { clang: "9.1", clang_build: 902 },
+      "9.4"   => { clang: "9.1", clang_build: 902 },
+      "10.0"  => { clang: "10.0", clang_build: 1000 },
     }.freeze
 
     def compilers_standard?
@@ -238,7 +256,6 @@ module OS
     end
 
     def mdfind(*ids)
-      return [] unless OS.mac?
       (@mdfind ||= {}).fetch(ids) do
         @mdfind[ids] = Utils.popen_read("/usr/bin/mdfind", mdfind_query(*ids)).split("\n")
       end
@@ -252,6 +269,14 @@ module OS
 
     def mdfind_query(*ids)
       ids.map! { |id| "kMDItemCFBundleIdentifier == #{id}" }.join(" || ")
+    end
+
+    def tcc_db
+      @tcc_db ||= Pathname.new("/Library/Application Support/com.apple.TCC/TCC.db")
+    end
+
+    def pre_mavericks_accessibility_dotfile
+      @pre_mavericks_accessibility_dotfile ||= Pathname.new("/private/var/db/.AccessibilityAPIEnabled")
     end
   end
 end

@@ -1,4 +1,4 @@
-require "vendor/macho/macho"
+require "macho"
 require "os/mac/architecture_list"
 
 module MachOShim
@@ -43,10 +43,9 @@ module MachOShim
       []
     rescue
       # ... but complain about other (parse) errors for further investigation.
-      if ARGV.homebrew_developer?
-        onoe "Failed to read Mach-O binary: #{self}"
-        raise
-      end
+      onoe "Failed to read Mach-O binary: #{self}"
+      raise if ARGV.homebrew_developer?
+
       []
     end
   end

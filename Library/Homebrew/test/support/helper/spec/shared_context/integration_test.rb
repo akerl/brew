@@ -83,9 +83,7 @@ RSpec.shared_context "integration test" do
     @ruby_args ||= begin
       ruby_args = [
         "-W0",
-        "-I", "#{HOMEBREW_LIBRARY_PATH}/test/support/lib",
-        "-I", HOMEBREW_LIBRARY_PATH.to_s,
-        "-rconfig"
+        "-I", $LOAD_PATH.join(File::PATH_SEPARATOR)
       ]
       if ENV["HOMEBREW_TESTS_COVERAGE"]
         simplecov_spec = Gem.loaded_specs["simplecov"]
@@ -102,6 +100,7 @@ RSpec.shared_context "integration test" do
           # full_require_paths isn't available in RubyGems < 2.2.
           spec.require_paths.map do |lib|
             next lib if lib.include?(full_gem_path)
+
             "#{full_gem_path}/#{lib}"
           end
         end
@@ -128,7 +127,7 @@ RSpec.shared_context "integration test" do
       else
         TEST_FIXTURE_DIR/"tarballs/testball-0.1.tbz"
       end
-      content = <<~EOS
+      content = <<~RUBY
         desc "Some test"
         homepage "https://example.com/#{name}"
         url "file://#{tarball}"
@@ -148,24 +147,28 @@ RSpec.shared_context "integration test" do
         #{content}
 
         # something here
-      EOS
+      RUBY
     when "foo"
-      content = <<~EOS
+      content = <<~RUBY
         url "https://example.com/#{name}-1.0"
-      EOS
+      RUBY
     when "bar"
-      content = <<~EOS
+      content = <<~RUBY
         url "https://example.com/#{name}-1.0"
         depends_on "foo"
-      EOS
+      RUBY
+    when "patchelf"
+      content = <<~RUBY
+        url "https://example.com/#{name}-1.0"
+      RUBY
     end
 
     Formulary.core_path(name).tap do |formula_path|
-      formula_path.write <<~EOS
+      formula_path.write <<~RUBY
         class #{Formulary.class_s(name)} < Formula
           #{content}
         end
-      EOS
+      RUBY
     end
   end
 

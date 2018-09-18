@@ -11,7 +11,7 @@ module Homebrew
   module_function
 
   def release_notes
-    args = Homebrew::CLI::Parser.parse do
+    Homebrew::CLI::Parser.parse do
       switch "--markdown"
     end
 
@@ -25,6 +25,7 @@ module Homebrew
 
     [previous_tag, end_ref].each do |ref|
       next if quiet_system "git", "-C", HOMEBREW_REPOSITORY, "rev-parse", "--verify", "--quiet", ref
+
       odie "Ref #{ref} does not exist!"
     end
 

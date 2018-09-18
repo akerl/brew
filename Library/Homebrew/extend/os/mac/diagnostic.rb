@@ -60,8 +60,10 @@ module Homebrew
         <<~EOS
           You are using macOS #{MacOS.version}.
           #{who} do not provide support for this #{what}.
-          You may encounter build failures or other breakages.
-          Please create pull-requests instead of filing issues.
+          You will encounter build failures and other breakages.
+          Please create pull-requests instead of asking for help on Homebrew's
+          GitHub, Discourse, Twitter or IRC. As you are running this #{what},
+          you are responsible for resolving any issues you experience.
         EOS
       end
 
@@ -151,7 +153,7 @@ module Homebrew
       end
 
       def check_ruby_version
-        ruby_version = "2.3.3"
+        ruby_version = "2.3.7"
         return if RUBY_VERSION == ruby_version
         return if ARGV.homebrew_developer? && OS::Mac.prerelease?
 
@@ -230,7 +232,7 @@ module Homebrew
         <<~EOS
           Your XQuartz (#{MacOS::XQuartz.version}) is outdated.
           Please install XQuartz #{MacOS::XQuartz.latest_version} (or delete the current version).
-          XQuartz can be updated using Homebrew-Cask by running
+          XQuartz can be updated using Homebrew Cask by running
             brew cask reinstall xquartz
         EOS
       end
@@ -350,6 +352,7 @@ module Homebrew
 
       def check_for_multiple_volumes
         return unless HOMEBREW_CELLAR.exist?
+
         volumes = Volumes.new
 
         # Find the volumes for the TMP folder & HOMEBREW_CELLAR

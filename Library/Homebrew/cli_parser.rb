@@ -5,15 +5,15 @@ require "set"
 module Homebrew
   module CLI
     class Parser
-      def self.parse(&block)
-        new(&block).parse
+      def self.parse(args = ARGV, &block)
+        new(&block).parse(args)
       end
 
       def initialize(&block)
         @parser = OptionParser.new
-        @parsed_args = OpenStruct.new
+        Homebrew.args = OpenStruct.new
         # undefine tap to allow --tap argument
-        @parsed_args.instance_eval { undef tap }
+        Homebrew.args.instance_eval { undef tap }
         @constraints = []
         @conflicts = []
         instance_eval(&block)
@@ -24,20 +24,20 @@ module Homebrew
         global_switch = names.first.is_a?(Symbol)
         names, env = common_switch(*names) if global_switch
         @parser.on(*names, description) do
-          enable_switch(*names, global_switch)
+          enable_switch(*names)
         end
-        enable_switch(*names, global_switch) if !env.nil? &&
-                                                !ENV["HOMEBREW_#{env.to_s.upcase}"].nil?
 
         names.each do |name|
           set_constraints(name, required_for: required_for, depends_on: depends_on)
         end
+
+        enable_switch(*names) if !env.nil? && !ENV["HOMEBREW_#{env.to_s.upcase}"].nil?
       end
 
       def comma_array(name, description: nil)
         description = option_to_description(name) if description.nil?
         @parser.on(name, OptionParser::REQUIRED_ARGUMENT, Array, description) do |list|
-          @parsed_args[option_to_name(name)] = list
+          Homebrew.args[option_to_name(name)] = list
         end
       end
 
@@ -50,7 +50,7 @@ module Homebrew
         end
         description = option_to_description(name) if description.nil?
         @parser.on(name, description, required) do |option_value|
-          @parsed_args[option_to_name(name)] = option_value
+          Homebrew.args[option_to_name(name)] = option_value
         end
 
         set_constraints(name, required_for: required_for, depends_on: depends_on)
@@ -60,29 +60,35 @@ module Homebrew
         @conflicts << options.map { |option| option_to_name(option) }
       end
 
-      def option_to_name(name)
-        name.sub(/\A--?/, "").tr("-", "_").delete("=")
+      def option_to_name(option)
+        option.sub(/\A--?/, "")
+              .tr("-", "_")
+              .delete("=")
+      end
+
+      def name_to_option(name)
+        if name.length == 1
+          "-#{name}"
+        else
+          "--#{name}"
+        end
       end
 
       def option_to_description(*names)
         names.map { |name| name.to_s.sub(/\A--?/, "").tr("-", " ") }.max
       end
 
-      def parse(cmdline_args = ARGV)
-        @parser.parse(cmdline_args)
+      def parse(cmdline_args)
+        remaining_args = @parser.parse(cmdline_args)
         check_constraint_violations
-        @parsed_args
+        Homebrew.args[:remaining] = remaining_args
       end
 
       private
 
-      def enable_switch(*names, global_switch)
+      def enable_switch(*names)
         names.each do |name|
-          if global_switch
-            Homebrew.args["#{option_to_name(name)}?"] = true
-            next
-          end
-          @parsed_args["#{option_to_name(name)}?"] = true
+          Homebrew.args["#{option_to_name(name)}?"] = true
         end
       end
 
@@ -98,7 +104,7 @@ module Homebrew
       end
 
       def option_passed?(name)
-        @parsed_args.respond_to?(name) || @parsed_args.respond_to?("#{name}?")
+        Homebrew.args.respond_to?(name) || Homebrew.args.respond_to?("#{name}?")
       end
 
       def set_constraints(name, depends_on:, required_for:)
@@ -109,6 +115,7 @@ module Homebrew
         end
 
         return if depends_on.nil?
+
         primary = option_to_name(depends_on)
         @constraints << [primary, secondary, :optional]
       end
@@ -131,7 +138,10 @@ module Homebrew
           violations = mutually_exclusive_options_group.select do |option|
             option_passed? option
           end
-          raise OptionConflictError, violations if violations.length > 1
+
+          next if violations.count < 2
+
+          raise OptionConflictError, violations.map(&method(:name_to_option))
         end
       end
 
@@ -139,6 +149,7 @@ module Homebrew
         @conflicts.each do |mutually_exclusive_options_group|
           @constraints.each do |p, s|
             next unless Set[p, s].subset?(Set[*mutually_exclusive_options_group])
+
             raise InvalidConstraintError.new(p, s)
           end
         end
@@ -168,9 +179,10 @@ module Homebrew
 
     class OptionConflictError < RuntimeError
       def initialize(args)
-        args_list = args.join("` and `")
+        args_list = args.map(&Formatter.public_method(:option))
+                        .join(" and ")
         super <<~EOS
-          `#{args_list}` are mutually exclusive
+          Options #{args_list} are mutually exclusive.
         EOS
       end
     end

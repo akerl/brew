@@ -42,6 +42,7 @@ class Locale
 
       regex = self.class.const_get("#{key.upcase}_REGEX")
       raise ParserError, "'#{value}' does not match #{regex}" unless value =~ regex
+
       instance_variable_set(:"@#{key}", value)
     end
   end
@@ -67,6 +68,11 @@ class Locale
     false
   end
   alias == eql?
+
+  def detect(locale_groups)
+    locale_groups.find { |locales| locales.any? { |locale| eql?(locale) } } ||
+      locale_groups.find { |locales| locales.any? { |locale| include?(locale) } }
+  end
 
   def to_s
     [@language, @region, @script].compact.join("-")

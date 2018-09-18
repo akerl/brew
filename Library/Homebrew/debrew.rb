@@ -60,7 +60,7 @@ module Debrew
         if i.positive?
           choice = menu.entries[i - 1]
         else
-          possible = menu.entries.find_all { |e| e.name.start_with?(input) }
+          possible = menu.entries.select { |e| e.name.start_with?(input) }
 
           case possible.size
           when 0 then puts "No such option"
@@ -119,7 +119,7 @@ module Debrew
           if e.is_a?(Ignorable)
             menu.choice(:irb) do
               puts "When you exit this IRB session, execution will continue."
-              set_trace_func proc { |event, _, _, id, binding, klass| # rubocop:disable Metrics/ParameterLists
+              set_trace_func proc { |event, _, _, id, binding, klass|
                 if klass == Raise && id == :raise && event == "return"
                   set_trace_func(nil)
                   synchronize { IRB.start_within(binding) }

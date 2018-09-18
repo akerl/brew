@@ -1,4 +1,4 @@
-require_relative "../../rubocops/dependency_order_cop"
+require "rubocops/dependency_order_cop"
 
 describe RuboCop::Cop::NewFormulaAudit::DependencyOrder do
   subject(:cop) { described_class.new }
@@ -7,8 +7,8 @@ describe RuboCop::Cop::NewFormulaAudit::DependencyOrder do
     it "wrong conditional depends_on order" do
       expect_offense(<<~RUBY)
         class Foo < Formula
-          homepage "http://example.com"
-          url "http://example.com/foo-1.0.tgz"
+          homepage "https://example.com"
+          url "https://example.com/foo-1.0.tgz"
           depends_on "apple" if build.with? "foo"
           depends_on "foo" => :optional
           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ dependency "foo" (line 5) should be put before dependency "apple" (line 4)
@@ -19,8 +19,8 @@ describe RuboCop::Cop::NewFormulaAudit::DependencyOrder do
     it "wrong alphabetical depends_on order" do
       expect_offense(<<~RUBY)
         class Foo < Formula
-          homepage "http://example.com"
-          url "http://example.com/foo-1.0.tgz"
+          homepage "https://example.com"
+          url "https://example.com/foo-1.0.tgz"
           depends_on "foo"
           depends_on "bar"
           ^^^^^^^^^^^^^^^^ dependency "bar" (line 5) should be put before dependency "foo" (line 4)
@@ -28,11 +28,23 @@ describe RuboCop::Cop::NewFormulaAudit::DependencyOrder do
       RUBY
     end
 
+    it "supports requirement constants" do
+      expect_offense(<<~RUBY)
+        class Foo < Formula
+          homepage "https://example.com"
+          url "https://example.com/foo-1.0.tgz"
+          depends_on FooRequirement
+          depends_on "bar"
+          ^^^^^^^^^^^^^^^^ dependency "bar" (line 5) should be put before dependency "FooRequirement" (line 4)
+        end
+      RUBY
+    end
+
     it "wrong conditional depends_on order" do
       expect_offense(<<~RUBY)
         class Foo < Formula
-          homepage "http://example.com"
-          url "http://example.com/foo-1.0.tgz"
+          homepage "https://example.com"
+          url "https://example.com/foo-1.0.tgz"
           head do
             depends_on "apple" if build.with? "foo"
             depends_on "bar"
@@ -50,8 +62,8 @@ describe RuboCop::Cop::NewFormulaAudit::DependencyOrder do
     it "correct depends_on order for multiple tags" do
       expect_no_offenses(<<~RUBY)
         class Foo < Formula
-          homepage "http://example.com"
-          url "http://example.com/foo-1.0.tgz"
+          homepage "https://example.com"
+          url "https://example.com/foo-1.0.tgz"
           depends_on "bar" => [:build, :test]
           depends_on "foo" => :build
           depends_on "apple"
@@ -62,23 +74,23 @@ describe RuboCop::Cop::NewFormulaAudit::DependencyOrder do
 
   context "autocorrect" do
     it "wrong conditional depends_on order" do
-      source = <<~EOS
+      source = <<~RUBY
         class Foo < Formula
-          homepage "http://example.com"
-          url "http://example.com/foo-1.0.tgz"
+          homepage "https://example.com"
+          url "https://example.com/foo-1.0.tgz"
           depends_on "apple" if build.with? "foo"
           depends_on "foo" => :optional
         end
-      EOS
+      RUBY
 
-      correct_source = <<~EOS
+      correct_source = <<~RUBY
         class Foo < Formula
-          homepage "http://example.com"
-          url "http://example.com/foo-1.0.tgz"
+          homepage "https://example.com"
+          url "https://example.com/foo-1.0.tgz"
           depends_on "foo" => :optional
           depends_on "apple" if build.with? "foo"
         end
-      EOS
+      RUBY
 
       corrected_source = autocorrect_source(source)
       expect(corrected_source).to eq(correct_source)

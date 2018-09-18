@@ -4,7 +4,7 @@ require "formulary"
 module Count
   def self.increment
     @count ||= 0
-    @count  += 1
+    @count += 1
   end
 end
 
@@ -19,20 +19,20 @@ module Homebrew
     def formula_text(name, body = nil, options = {})
       path = dir/"#{name}.rb"
 
-      path.write <<~EOS
+      path.write <<~RUBY
         class #{Formulary.class_s(name)} < Formula
           #{body}
         end
         #{options[:patch]}
-      EOS
+      RUBY
 
       described_class.new(path)
     end
 
     specify "simple valid Formula" do
-      ft = formula_text "valid", <<~EOS
-        url "http://www.example.com/valid-1.0.tar.gz"
-      EOS
+      ft = formula_text "valid", <<~RUBY
+        url "https://www.example.com/valid-1.0.tar.gz"
+      RUBY
 
       expect(ft).not_to have_data
       expect(ft).not_to have_end
@@ -50,9 +50,9 @@ module Homebrew
     end
 
     specify "#data?" do
-      ft = formula_text "data", <<~EOS
+      ft = formula_text "data", <<~RUBY
         patch :DATA
-      EOS
+      RUBY
 
       expect(ft).to have_data
     end
@@ -78,11 +78,11 @@ module Homebrew
 
     describe "#problems" do
       it "is empty by default" do
-        fa = formula_auditor "foo", <<~EOS
+        fa = formula_auditor "foo", <<~RUBY
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
           end
-        EOS
+        RUBY
 
         expect(fa.problems).to be_empty
       end
@@ -92,11 +92,11 @@ module Homebrew
       specify "file permissions" do
         allow(File).to receive(:umask).and_return(022)
 
-        fa = formula_auditor "foo", <<~EOS
+        fa = formula_auditor "foo", <<~RUBY
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
           end
-        EOS
+        RUBY
 
         path = fa.formula.path
         path.chmod 0400
@@ -107,25 +107,25 @@ module Homebrew
       end
 
       specify "DATA but no __END__" do
-        fa = formula_auditor "foo", <<~EOS
+        fa = formula_auditor "foo", <<~RUBY
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
             patch :DATA
           end
-        EOS
+        RUBY
 
         fa.audit_file
         expect(fa.problems).to eq(["'DATA' was found, but no '__END__'"])
       end
 
       specify "__END__ but no DATA" do
-        fa = formula_auditor "foo", <<~EOS
+        fa = formula_auditor "foo", <<~RUBY
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
           end
           __END__
           a patch goes here
-        EOS
+        RUBY
 
         fa.audit_file
         expect(fa.problems).to eq(["'__END__' was found, but 'DATA' is not used"])
@@ -139,12 +139,12 @@ module Homebrew
       end
 
       specify "no issue" do
-        fa = formula_auditor "foo", <<~EOS
+        fa = formula_auditor "foo", <<~RUBY
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
-            homepage "http://example.com"
+            url "https://example.com/foo-1.0.tgz"
+            homepage "https://example.com"
           end
-        EOS
+        RUBY
 
         fa.audit_file
         expect(fa.problems).to eq([])
@@ -153,11 +153,11 @@ module Homebrew
 
     describe "#line_problems" do
       specify "pkgshare" do
-        fa = formula_auditor "foo", <<~EOS, strict: true
+        fa = formula_auditor "foo", <<~RUBY, strict: true
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
           end
-        EOS
+        RUBY
 
         fa.line_problems 'ohai "#{share}/foo"', 3
         expect(fa.problems.shift).to eq("Use \#{pkgshare} instead of \#{share}/foo")
@@ -185,12 +185,12 @@ module Homebrew
       # Formulae with "++" in their name would break various audit regexps:
       #   Error: nested *?+ in regexp: /^libxml++3\s/
       specify "++ in name" do
-        fa = formula_auditor "foolibc++", <<~EOS, strict: true
+        fa = formula_auditor "foolibc++", <<~RUBY, strict: true
           class Foolibcxx < Formula
             desc "foolibc++ is a test"
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
           end
-        EOS
+        RUBY
 
         fa.line_problems 'ohai "#{share}/foolibc++"', 3
         expect(fa.problems.shift)
@@ -206,12 +206,12 @@ module Homebrew
       specify "#audit_github_repository when HOMEBREW_NO_GITHUB_API is set" do
         ENV["HOMEBREW_NO_GITHUB_API"] = "1"
 
-        fa = formula_auditor "foo", <<~EOS, strict: true, online: true
+        fa = formula_auditor "foo", <<~RUBY, strict: true, online: true
           class Foo < Formula
             homepage "https://github.com/example/example"
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
           end
-        EOS
+        RUBY
 
         fa.audit_github_repository
         expect(fa.problems).to eq([])
@@ -224,20 +224,20 @@ module Homebrew
           subject { fa }
 
           let(:fa) do
-            formula_auditor "foo", <<~EOS, new_formula: true
+            formula_auditor "foo", <<~RUBY, new_formula: true
               class Foo < Formula
-                url "http://example.com/foo-1.0.tgz"
-                homepage "http://example.com"
+                url "https://example.com/foo-1.0.tgz"
+                homepage "https://example.com"
 
                 depends_on "openssl"
               end
-            EOS
+            RUBY
           end
 
           let(:f_openssl) do
             formula do
-              url "http://example.com/openssl-1.0.tgz"
-              homepage "http://example.com"
+              url "https://example.com/openssl-1.0.tgz"
+              homepage "https://example.com"
 
               keg_only :provided_by_macos
             end
@@ -256,20 +256,20 @@ module Homebrew
           subject { fa }
 
           let(:fa) do
-            formula_auditor "foo", <<~EOS, new_formula: true
+            formula_auditor "foo", <<~RUBY, new_formula: true
               class Foo < Formula
-                url "http://example.com/foo-1.0.tgz"
-                homepage "http://example.com"
+                url "https://example.com/foo-1.0.tgz"
+                homepage "https://example.com"
 
                 depends_on "bc"
               end
-            EOS
+            RUBY
           end
 
           let(:f_bc) do
             formula do
-              url "http://example.com/bc-1.0.tgz"
-              homepage "http://example.com"
+              url "https://example.com/bc-1.0.tgz"
+              homepage "https://example.com"
 
               keg_only :provided_by_macos
             end
@@ -288,13 +288,13 @@ module Homebrew
 
     describe "#audit_keg_only_style" do
       specify "keg_only_needs_downcasing" do
-        fa = formula_auditor "foo", <<~EOS, strict: true
+        fa = formula_auditor "foo", <<~RUBY, strict: true
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
 
             keg_only "Because why not"
           end
-        EOS
+        RUBY
 
         fa.audit_keg_only_style
         expect(fa.problems)
@@ -302,13 +302,13 @@ module Homebrew
       end
 
       specify "keg_only_redundant_period" do
-        fa = formula_auditor "foo", <<~EOS, strict: true
+        fa = formula_auditor "foo", <<~RUBY, strict: true
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
 
             keg_only "because this line ends in a period."
           end
-        EOS
+        RUBY
 
         fa.audit_keg_only_style
         expect(fa.problems)
@@ -316,9 +316,9 @@ module Homebrew
       end
 
       specify "keg_only_handles_block_correctly" do
-        fa = formula_auditor "foo", <<~EOS, strict: true
+        fa = formula_auditor "foo", <<~RUBY, strict: true
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
 
             keg_only <<~EOF
               this line starts with a lowercase word.
@@ -327,7 +327,7 @@ module Homebrew
               problem
             EOF
           end
-        EOS
+        RUBY
 
         fa.audit_keg_only_style
         expect(fa.problems)
@@ -335,13 +335,13 @@ module Homebrew
       end
 
       specify "keg_only_handles_whitelist_correctly" do
-        fa = formula_auditor "foo", <<~EOS, strict: true
+        fa = formula_auditor "foo", <<~RUBY, strict: true
           class Foo < Formula
-            url "http://example.com/foo-1.0.tgz"
+            url "https://example.com/foo-1.0.tgz"
 
             keg_only "Apple ships foo in the CLT package"
           end
-        EOS
+        RUBY
 
         fa.audit_keg_only_style
         expect(fa.problems)
@@ -350,28 +350,27 @@ module Homebrew
     end
 
     describe "#audit_revision_and_version_scheme" do
-      subject do
+      subject {
         fa = described_class.new(Formulary.factory(formula_path))
         fa.audit_revision_and_version_scheme
         fa.problems.first
-      end
+      }
 
       let(:origin_tap_path) { Tap::TAP_DIRECTORY/"homebrew/homebrew-foo" }
-      let(:formula_subpath) { "Formula/foo#{@foo_version}.rb" }
+      let(:foo_version) { Count.increment }
+      let(:formula_subpath) { "Formula/foo#{foo_version}.rb" }
       let(:origin_formula_path) { origin_tap_path/formula_subpath }
       let(:tap_path) { Tap::TAP_DIRECTORY/"homebrew/homebrew-bar" }
       let(:formula_path) { tap_path/formula_subpath }
 
       before do
-        @foo_version = Count.increment
-
-        origin_formula_path.write <<~EOS
-          class Foo#{@foo_version} < Formula
+        origin_formula_path.write <<~RUBY
+          class Foo#{foo_version} < Formula
             url "https://example.com/foo-1.0.tar.gz"
             revision 2
             version_scheme 1
           end
-        EOS
+        RUBY
 
         origin_tap_path.mkpath
         origin_tap_path.cd do
@@ -526,11 +525,11 @@ module Homebrew
 
     describe "#audit_url_is_not_binary" do
       specify "it detects a url containing darwin and x86_64" do
-        fa = formula_auditor "foo", <<~EOS, official_tap: true
+        fa = formula_auditor "foo", <<~RUBY, official_tap: true
           class Foo < Formula
             url "https://example.com/example-darwin.x86_64.tar.gz"
           end
-        EOS
+        RUBY
 
         fa.audit_url_is_not_binary
 
@@ -539,11 +538,11 @@ module Homebrew
       end
 
       specify "it detects a url containing darwin and amd64" do
-        fa = formula_auditor "foo", <<~EOS, official_tap: true
+        fa = formula_auditor "foo", <<~RUBY, official_tap: true
           class Foo < Formula
             url "https://example.com/example-darwin.amd64.tar.gz"
           end
-        EOS
+        RUBY
 
         fa.audit_url_is_not_binary
 
@@ -552,7 +551,7 @@ module Homebrew
       end
 
       specify "it works on the devel spec" do
-        fa = formula_auditor "foo", <<~EOS, official_tap: true
+        fa = formula_auditor "foo", <<~RUBY, official_tap: true
           class Foo < Formula
             url "https://example.com/valid-1.0.tar.gz"
 
@@ -560,7 +559,7 @@ module Homebrew
               url "https://example.com/example-darwin.x86_64.tar.gz"
             end
           end
-        EOS
+        RUBY
 
         fa.audit_url_is_not_binary
 
@@ -569,7 +568,7 @@ module Homebrew
       end
 
       specify "it works on the head spec" do
-        fa = formula_auditor "foo", <<~EOS, official_tap: true
+        fa = formula_auditor "foo", <<~RUBY, official_tap: true
           class Foo < Formula
             url "https://example.com/valid-1.0.tar.gz"
 
@@ -577,7 +576,7 @@ module Homebrew
               url "https://example.com/example-darwin.x86_64.tar.gz"
             end
           end
-        EOS
+        RUBY
 
         fa.audit_url_is_not_binary
 
@@ -586,7 +585,7 @@ module Homebrew
       end
 
       specify "it ignores resource urls" do
-        fa = formula_auditor "foo", <<~EOS, official_tap: true
+        fa = formula_auditor "foo", <<~RUBY, official_tap: true
           class Foo < Formula
             url "https://example.com/valid-1.0.tar.gz"
 
@@ -594,7 +593,7 @@ module Homebrew
               url "https://example.com/example-darwin.x86_64.tar.gz"
             end
           end
-        EOS
+        RUBY
 
         fa.audit_url_is_not_binary
 

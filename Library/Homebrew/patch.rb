@@ -67,8 +67,7 @@ class EmbeddedPatch
   def apply
     data = contents.gsub("HOMEBREW_PREFIX", HOMEBREW_PREFIX)
     args = %W[-g 0 -f -#{strip}]
-    Utils.popen_write("patch", *args) { |p| p.write(data) }
-    raise ErrorDuringExecution.new("patch", args) unless $CHILD_STATUS.success?
+    Utils.safe_popen_write("patch", *args) { |p| p.write(data) }
   end
 
   def inspect
@@ -145,6 +144,7 @@ class ExternalPatch
             the "apply" method was used one or more times in the patch-do block.
           EOS
         end
+
         patch_files << children.first.basename
       end
       dir.cd do

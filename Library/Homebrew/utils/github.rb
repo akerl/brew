@@ -9,7 +9,9 @@ module GitHub
   CREATE_GIST_SCOPES = ["gist"].freeze
   CREATE_ISSUE_FORK_OR_PR_SCOPES = ["public_repo"].freeze
   ALL_SCOPES = (CREATE_GIST_SCOPES + CREATE_ISSUE_FORK_OR_PR_SCOPES).freeze
-  ALL_SCOPES_URL = Formatter.url("https://github.com/settings/tokens/new?scopes=#{ALL_SCOPES.join(",")}&description=Homebrew").freeze
+  ALL_SCOPES_URL = Formatter.url(
+    "https://github.com/settings/tokens/new?scopes=#{ALL_SCOPES.join(",")}&description=Homebrew",
+  ).freeze
   PR_ENV_KEY = "HOMEBREW_NEW_FORMULA_PULL_REQUEST_URL".freeze
   PR_ENV = ENV[PR_ENV_KEY]
 
@@ -90,6 +92,7 @@ module GitHub
     token, username = api_credentials
     return :none if !token || token.empty?
     return :environment if !username || username.empty?
+
     :keychain
   end
 
@@ -131,13 +134,12 @@ module GitHub
     # This is a no-op if the user is opting out of using the GitHub API.
     return block_given? ? yield({}) : {} if ENV["HOMEBREW_NO_GITHUB_API"]
 
-    args = %W[--header application/vnd.github.v3+json --write-out \n%{http_code}] # rubocop:disable Lint/NestedPercentLiteral
-    args += curl_args
+    args = ["--header", "application/vnd.github.v3+json", "--write-out", "\n%{http_code}"]
 
     token, username = api_credentials
     case api_credentials_type
     when :keychain
-      args += %W[--user #{username}:#{token}]
+      args += ["--user", "#{username}:#{token}"]
     when :environment
       args += ["--header", "Authorization: token #{token}"]
     end
@@ -162,7 +164,7 @@ module GitHub
 
       args += ["--dump-header", headers_tmpfile.path]
 
-      output, errors, status = curl_output(url.to_s, "--location", *args)
+      output, errors, status = curl_output("--location", url.to_s, *args)
       output, _, http_code = output.rpartition("\n")
       output, _, http_code = output.rpartition("\n") if http_code == "000"
       headers = headers_tmpfile.read
@@ -176,7 +178,7 @@ module GitHub
     end
 
     begin
-      if !http_code.start_with?("2") && !status.success?
+      if !http_code.start_with?("2") || !status.success?
         raise_api_error(output, errors, http_code, headers, scopes)
       end
       json = JSON.parse output
@@ -196,6 +198,7 @@ module GitHub
       key, _, value = l.delete(":").partition(" ")
       key = key.downcase.strip
       next if key.empty?
+
       meta[key] = value.strip
     end
 
@@ -296,6 +299,7 @@ module GitHub
 
   def create_issue_comment(body)
     return false unless PR_ENV
+
     _, user, repo, pr = *PR_ENV.match(HOMEBREW_PULL_OR_COMMIT_URL_REGEX)
     if !user || !repo || !pr
       opoo <<-EOS.undent
@@ -308,7 +312,7 @@ module GitHub
     url = "#{API_URL}/repos/#{user}/#{repo}/issues/#{pr}/comments"
     data = { "body" => body }
     if issue_comment_exists?(user, repo, pr, body)
-      ohai "Skipping: identical comment exists on #{PR_ENV}."
+      ohai "Skipping: identical comment exists on #{PR_ENV}"
       return true
     end
 
@@ -320,6 +324,7 @@ module GitHub
     url = "#{API_URL}/repos/#{user}/#{repo}/issues/#{pr}/comments"
     comments = open_api(url)
     return unless comments
+
     comments.any? { |comment| comment["body"].eql?(body) }
   end
 

@@ -1,6 +1,7 @@
 require "download_strategy"
 require "checksum"
 require "version"
+require "mktemp"
 
 # Resource is the fundamental representation of an external resource. The
 # primary formula download, along with other declared resources, are instances
@@ -15,28 +16,6 @@ class Resource
   # Formula name must be set after the DSL, as we have no access to the
   # formula name before initialization of the formula
   attr_accessor :name
-
-  class Download
-    def initialize(resource)
-      @resource = resource
-    end
-
-    def url
-      @resource.url
-    end
-
-    def specs
-      @resource.specs
-    end
-
-    def version
-      @resource.version
-    end
-
-    def mirrors
-      @resource.mirrors
-    end
-  end
 
   def initialize(name = nil, &block)
     @name = name
@@ -56,7 +35,8 @@ class Resource
   end
 
   def downloader
-    download_strategy.new(download_name, Download.new(self))
+    download_strategy.new(url, download_name, version,
+                          mirrors: mirrors.dup, **specs)
   end
 
   # Removes /s from resource names; this allows go package names
@@ -67,7 +47,10 @@ class Resource
   end
 
   def download_name
-    name.nil? ? owner.name : "#{owner.name}--#{escaped_name}"
+    return owner.name if name.nil?
+    return escaped_name if owner.nil?
+
+    "#{owner.name}--#{escaped_name}"
   end
 
   def cached_download
@@ -81,7 +64,7 @@ class Resource
   # Verifies download and unpacks it
   # The block may call `|resource,staging| staging.retain!` to retain the staging
   # directory. Subclasses that override stage should implement the tmp
-  # dir using FileUtils.mktemp so that works with all subtypes.
+  # dir using Resource#mktemp so that works with all subtypes.
   def stage(target = nil, &block)
     unless target || block
       raise ArgumentError, "target directory or block is required"
@@ -102,6 +85,7 @@ class Resource
 
   def apply_patches
     return if patches.empty?
+
     ohai "Patching #{name}"
     patches.each(&:apply)
   end
@@ -118,7 +102,7 @@ class Resource
       if block_given?
         yield ResourceStageContext.new(self, staging)
       elsif target
-        target = Pathname.new(target) unless target.is_a? Pathname
+        target = Pathname(target)
         target.install Pathname.pwd.children
       end
     end
@@ -157,8 +141,9 @@ class Resource
     define_method(type) { |val| @checksum = Checksum.new(type, val) }
   end
 
-  def url(val = nil, specs = {})
+  def url(val = nil, **specs)
     return @url if val.nil?
+
     @url = val
     @specs.merge!(specs)
     @using = @specs.delete(:using)
@@ -179,6 +164,14 @@ class Resource
   def patch(strip = :p1, src = nil, &block)
     p = Patch.create(strip, src, &block)
     patches << p
+  end
+
+  protected
+
+  def mktemp(prefix)
+    Mktemp.new(prefix).run do |staging|
+      yield staging
+    end
   end
 
   private

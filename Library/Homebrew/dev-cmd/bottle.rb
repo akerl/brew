@@ -1,4 +1,4 @@
-#:  * `bottle` [`--verbose`] [`--no-rebuild`|`--keep-old`] [`--skip-relocation`] [`--or-later`] [`--root-url=`<URL>] [`--force-core-tap`] <formulae>:
+#:  * `bottle` [`--verbose`] [`--no-rebuild`|`--keep-old`] [`--skip-relocation`] [`--or-later`] [`--root-url=`<URL>] [`--force-core-tap`] [`--json`] <formulae>:
 #:    Generate a bottle (binary package) from a formula installed with
 #:    `--build-bottle`.
 #:
@@ -20,16 +20,15 @@
 #:    If `--force-core-tap` is passed, build a bottle even if <formula> is not
 #:    in halyard/core or any installed taps.
 #:
-#:  * `bottle` `--merge` [`--keep-old`] [`--write` [`--no-commit`]] <formulae>:
-#:    Generate a bottle from a formula and print the new DSL merged into the
-#:    existing formula.
+#:    If `--json` is passed, write bottle information to a JSON file, which can
+#:    be used as the argument for `--merge`.
+#:
+#:  * `bottle` `--merge` [`--keep-old`] [`--write` [`--no-commit`]] <bottle_json_files>:
+#:    Generate a bottle from a `--json` output file and print the new DSL merged
+#:    into the existing formula.
 #:
 #:    If `--write` is passed, write the changes to the formula file. A new
 #:    commit will then be generated unless `--no-commit` is passed.
-
-# Undocumented options:
-#     `--json` writes bottle information to a JSON file, which can be used as
-#     the argument for `--merge`.
 
 require "formula"
 require "utils/bottles"
@@ -42,15 +41,15 @@ require "erb"
 
 BOTTLE_ERB = <<-EOS.freeze
   bottle do
-    <% if !root_url.start_with?(BottleSpecification::DEFAULT_DOMAIN) %>
+    <% if !["#{HOMEBREW_BOTTLE_DEFAULT_DOMAIN}/bottles", "https://homebrew.bintray.com/bottles"].include?(root_url) %>
     root_url "<%= root_url %>"
     <% end %>
-    <% if prefix != BottleSpecification::DEFAULT_PREFIX %>
+    <% if ![Homebrew::DEFAULT_PREFIX, "/usr/local"].include?(prefix) %>
     prefix "<%= prefix %>"
     <% end %>
     <% if cellar.is_a? Symbol %>
     cellar :<%= cellar %>
-    <% elsif cellar != BottleSpecification::DEFAULT_CELLAR %>
+    <% elsif ![Homebrew::DEFAULT_CELLAR, "/usr/local/Cellar"].include?(cellar) %>
     cellar "<%= cellar %>"
     <% end %>
     <% if rebuild.positive? %>
@@ -71,7 +70,7 @@ module Homebrew
   module_function
 
   def bottle
-    @args = Homebrew::CLI::Parser.parse do
+    Homebrew::CLI::Parser.parse do
       switch "--merge"
       switch "--skip-relocation"
       switch "--force-core-tap"
@@ -86,9 +85,20 @@ module Homebrew
       flag   "--root-url"
     end
 
-    return merge if @args.merge?
+    return merge if args.merge?
+
+    ensure_relocation_formulae_installed!
     ARGV.resolved_formulae.each do |f|
       bottle_formula f
+    end
+  end
+
+  def ensure_relocation_formulae_installed!
+    Keg.relocation_formulae.each do |f|
+      next if Formula[f].installed?
+
+      ohai "Installing #{f}..."
+      safe_system HOMEBREW_BREW_FILE, "install", f
     end
   end
 
@@ -117,7 +127,7 @@ module Homebrew
       linked_libraries = Keg.file_linked_libraries(file, string)
       result ||= !linked_libraries.empty?
 
-      if Homebrew.args.verbose?
+      if args.verbose?
         print_filename.call(string, file) unless linked_libraries.empty?
         linked_libraries.each do |lib|
           puts " #{Tty.bold}-->#{Tty.reset} links to #{lib}"
@@ -132,6 +142,7 @@ module Homebrew
           str = io.readline.chomp
           next if ignores.any? { |i| i =~ str }
           next unless str.include? string
+
           offset, match = str.split(" ", 2)
           next if linked_libraries.include? match # Don't bother reporting a string if it was found by otool
 
@@ -140,7 +151,8 @@ module Homebrew
         end
       end
 
-      next unless Homebrew.args.verbose? && !text_matches.empty?
+      next unless args.verbose? && !text_matches.empty?
+
       print_filename.call(string, file)
       text_matches.first(MAXIMUM_STRING_MATCHES).each do |match, offset|
         puts " #{Tty.bold}-->#{Tty.reset} match '#{match}' at offset #{Tty.bold}0x#{offset}#{Tty.reset}"
@@ -158,10 +170,11 @@ module Homebrew
     absolute_symlinks_start_with_string = []
     keg.find do |pn|
       next unless pn.symlink? && (link = pn.readlink).absolute?
+
       absolute_symlinks_start_with_string << pn if link.to_s.start_with?(string)
     end
 
-    if Homebrew.args.verbose?
+    if args.verbose?
       unless absolute_symlinks_start_with_string.empty?
         opoo "Absolute symlink starting with #{string}:"
         absolute_symlinks_start_with_string.each do |pn|
@@ -184,7 +197,7 @@ module Homebrew
     end
 
     unless tap = f.tap
-      unless @args.force_core_tap?
+      unless args.force_core_tap?
         return ofail "Formula not from core or any taps: #{f.full_name}"
       end
 
@@ -203,9 +216,9 @@ module Homebrew
 
     return ofail "Formula has no stable version: #{f.full_name}" unless f.stable
 
-    if @args.no_rebuild? || !f.tap
+    if args.no_rebuild? || !f.tap
       rebuild = 0
-    elsif @args.keep_old?
+    elsif args.keep_old?
       rebuild = f.bottle_specification.rebuild
     else
       ohai "Determining #{f.full_name} bottle rebuild..."
@@ -238,7 +251,7 @@ module Homebrew
       begin
         keg.delete_pyc_files!
 
-        unless @args.skip_relocation?
+        unless args.skip_relocation?
           changed_files = keg.replace_locations_with_placeholders
         end
 
@@ -277,19 +290,24 @@ module Homebrew
           ohai "Detecting if #{filename} is relocatable..."
         end
 
-        if prefix == "/usr/local"
+        if Homebrew.default_prefix?(prefix)
           prefix_check = File.join(prefix, "opt")
         else
           prefix_check = prefix
         end
 
         ignores = []
-        if f.deps.any? { |dep| dep.name == "go" }
-          ignores << %r{#{Regexp.escape(HOMEBREW_CELLAR)}/go/[\d\.]+/libexec}
+        any_go_deps = f.deps.any? do |dep|
+          dep.name =~ Version.formula_optionally_versioned_regex(:go)
+        end
+        if any_go_deps
+          go_regex =
+            Version.formula_optionally_versioned_regex(:go, full: false)
+          ignores << %r{#{Regexp.escape(HOMEBREW_CELLAR)}/#{go_regex}/[\d\.]+/libexec}
         end
 
         relocatable = true
-        if @args.skip_relocation?
+        if args.skip_relocation?
           skip_relocation = true
         else
           relocatable = false if keg_contain?(prefix_check, keg, ignores)
@@ -302,21 +320,21 @@ module Homebrew
           end
           skip_relocation = relocatable && !keg.require_relocation?
         end
-        puts if !relocatable && Homebrew.args.verbose?
+        puts if !relocatable && args.verbose?
       rescue Interrupt
         ignore_interrupts { bottle_path.unlink if bottle_path.exist? }
         raise
       ensure
         ignore_interrupts do
           original_tab&.write
-          unless @args.skip_relocation?
+          unless args.skip_relocation?
             keg.replace_placeholders_with_locations changed_files
           end
         end
       end
     end
 
-    root_url = @args.root_url
+    root_url = args.root_url
 
     bottle = BottleSpecification.new
     bottle.tap = tap
@@ -336,7 +354,7 @@ module Homebrew
     bottle.sha256 sha256 => Utils::Bottles.tag
 
     old_spec = f.bottle_specification
-    if @args.keep_old? && !old_spec.checksums.empty?
+    if args.keep_old? && !old_spec.checksums.empty?
       mismatches = [:root_url, :prefix, :cellar, :rebuild].reject do |key|
         old_spec.send(key) == bottle.send(key)
       end
@@ -362,14 +380,15 @@ module Homebrew
     puts "./#{filename}"
     puts output
 
-    return unless @args.json?
+    return unless args.json?
+
     tag = Utils::Bottles.tag.to_s
-    tag += "_or_later" if @args.or_later?
+    tag += "_or_later" if args.or_later?
     json = {
       f.full_name => {
         "formula" => {
           "pkg_version" => f.pkg_version.to_s,
-          "path" => f.path.to_s.strip_prefix("#{HOMEBREW_REPOSITORY}/"),
+          "path" => f.path.to_s.delete_prefix("#{HOMEBREW_REPOSITORY}/"),
         },
         "bottle" => {
           "root_url" => bottle.root_url,
@@ -378,7 +397,8 @@ module Homebrew
           "rebuild" => bottle.rebuild,
           "tags" => {
             tag => {
-              "filename" => filename.to_s,
+              "filename" => filename.bintray,
+              "local_filename" => filename.to_s,
               "sha256" => sha256,
             },
           },
@@ -389,13 +409,13 @@ module Homebrew
         },
       },
     }
-    File.open("#{filename.prefix}.bottle.json", "w") do |file|
+    File.open(filename.json, "w") do |file|
       file.write JSON.generate json
     end
   end
 
   def merge
-    write = @args.write?
+    write = args.write?
 
     bottles_hash = ARGV.named.reduce({}) do |hash, json_file|
       deep_merge_hashes hash, JSON.parse(IO.read(json_file))
@@ -424,21 +444,23 @@ module Homebrew
         Utils::Inreplace.inreplace(path) do |s|
           if s.include? "bottle do"
             update_or_add = "update"
-            if @args.keep_old?
+            if args.keep_old?
               mismatches = []
               bottle_block_contents = s[/  bottle do(.+?)end\n/m, 1]
               bottle_block_contents.lines.each do |line|
                 line = line.strip
                 next if line.empty?
+
                 key, old_value_original, _, tag = line.split " ", 4
                 valid_key = %w[root_url prefix cellar rebuild sha1 sha256].include? key
                 next unless valid_key
 
-                old_value = old_value_original.to_s.delete ":'\""
+                old_value = old_value_original.to_s.delete "'\""
+                old_value = old_value.to_s.delete ":" if key != "root_url"
                 tag = tag.to_s.delete ":"
 
                 unless tag.empty?
-                  if !bottle_hash["bottle"]["tags"][tag].to_s.empty?
+                  if bottle_hash["bottle"]["tags"][tag].present?
                     mismatches << "#{key} => #{tag}"
                   else
                     bottle.send(key, old_value => tag.to_sym)
@@ -450,6 +472,7 @@ module Homebrew
                 value = value_original.to_s
                 next if key == "cellar" && old_value == "any" && value == "any_skip_relocation"
                 next unless old_value.empty? || value != old_value
+
                 old_value = old_value_original.inspect
                 value = value_original.inspect
                 mismatches << "#{key}: old: #{old_value}, new: #{value}"
@@ -467,7 +490,7 @@ module Homebrew
             string = s.sub!(/  bottle do.+?end\n/m, output)
             odie "Bottle block update failed!" unless string
           else
-            if @args.keep_old?
+            if args.keep_old?
               odie "--keep-old was passed but there was no existing bottle block!"
             end
             puts output
@@ -476,8 +499,7 @@ module Homebrew
               indent = s.slice(/^( +)stable do/, 1).length
               string = s.sub!(/^ {#{indent}}stable do(.|\n)+?^ {#{indent}}end\n/m, '\0' + output + "\n")
             else
-              string = s.sub!(
-                /(
+              pattern = /(
                   (\ {2}\#[^\n]*\n)*                                             # comments
                   \ {2}(                                                         # two spaces at the beginning
                     (url|head)\ ['"][\S\ ]+['"]                                  # url or head with a string
@@ -489,14 +511,14 @@ module Homebrew
                     revision\ \d+                                                # revision with a number
                   )\n+                                                           # multiple empty lines
                  )+
-               /mx, '\0' + output + "\n"
-              )
+               /mx
+              string = s.sub!(pattern, '\0' + output + "\n")
             end
             odie "Bottle block addition failed!" unless string
           end
         end
 
-        unless @args.no_commit?
+        unless args.no_commit?
           if ENV["HOMEBREW_GIT_NAME"]
             ENV["GIT_AUTHOR_NAME"] =
               ENV["GIT_COMMITTER_NAME"] =

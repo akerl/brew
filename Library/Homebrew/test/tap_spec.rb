@@ -18,22 +18,22 @@ describe Tap do
   end
 
   def setup_tap_files
-    formula_file.write <<~EOS
+    formula_file.write <<~RUBY
       class Foo < Formula
         url "https://example.com/foo-1.0.tar.gz"
       end
-    EOS
+    RUBY
 
     alias_file.parent.mkpath
     ln_s formula_file, alias_file
 
-    (path/"formula_renames.json").write <<~EOS
+    (path/"formula_renames.json").write <<~JSON
       { "oldname": "foo" }
-    EOS
+    JSON
 
-    (path/"tap_migrations.json").write <<~EOS
+    (path/"tap_migrations.json").write <<~JSON
       { "removed-formula": "homebrew/foo" }
-    EOS
+    JSON
 
     [
       cmd_file,
@@ -79,6 +79,20 @@ describe Tap do
       }.to raise_error(/Invalid tap name/)
     ensure
       described_class.clear_cache
+    end
+  end
+
+  describe "::from_path" do
+    let(:tap) { described_class.fetch("Homebrew", "core") }
+    let(:path) { tap.path }
+    let(:formula_path) { path/"Formula/formula.rb" }
+
+    it "returns the Tap for a Formula path" do
+      expect(described_class.from_path(formula_path)).to eq tap
+    end
+
+    it "returns the Tap when given its exact path" do
+      expect(described_class.from_path(path)).to eq tap
     end
   end
 
@@ -200,7 +214,9 @@ describe Tap do
       touch subject.path/".git/shallow"
       expect(already_tapped_tap).to be_installed
       wrong_remote = "#{subject.remote}-oops"
-      expect { already_tapped_tap.install clone_target: wrong_remote, full_clone: true }.to raise_error(TapRemoteMismatchError)
+      expect {
+        already_tapped_tap.install clone_target: wrong_remote, full_clone: true
+      }.to raise_error(TapRemoteMismatchError)
     end
 
     it "raises an error when the Tap is already unshallow" do
@@ -350,11 +366,11 @@ describe CoreTap do
 
   specify "files" do
     formula_file = subject.formula_dir/"foo.rb"
-    formula_file.write <<~EOS
+    formula_file.write <<~RUBY
       class Foo < Formula
         url "https://example.com/foo-1.0.tar.gz"
       end
-    EOS
+    RUBY
 
     alias_file = subject.alias_dir/"bar"
     alias_file.parent.mkpath

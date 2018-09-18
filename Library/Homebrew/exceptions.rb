@@ -1,3 +1,5 @@
+require "shellwords"
+
 class UsageError < RuntimeError
   attr_reader :reason
 
@@ -282,7 +284,7 @@ class OperationInProgressError < RuntimeError
       Operation already in progress for #{name}
       Another active Homebrew process is already using #{name}.
       Please wait for it to finish or terminate it to continue.
-      EOS
+    EOS
 
     super message
   end
@@ -333,7 +335,7 @@ class FormulaConflictError < RuntimeError
       link the formula again after the install finishes. You can --force this
       install, but the build may fail or cause obscure side-effects in the
       resulting software.
-      EOS
+    EOS
     message.join("\n")
   end
 end
@@ -350,14 +352,16 @@ class FormulaAmbiguousPythonError < RuntimeError
 end
 
 class BuildError < RuntimeError
-  attr_reader :formula, :env
-  attr_accessor :options
+  attr_reader :cmd, :args, :env
+  attr_accessor :formula, :options
 
   def initialize(formula, cmd, args, env)
     @formula = formula
+    @cmd = cmd
+    @args = args
     @env = env
-    args = args.map { |arg| arg.to_s.gsub " ", "\\ " }.join(" ")
-    super "Failed executing: #{cmd} #{args}"
+    pretty_args = args.map { |arg| arg.to_s.gsub " ", "\\ " }.join(" ")
+    super "Failed executing: #{cmd} #{pretty_args}"
   end
 
   def issues
@@ -425,6 +429,7 @@ class BuildError < RuntimeError
     checks.build_error_checks.each do |check|
       out = checks.send(check)
       next if out.nil?
+
       puts
       ofail out
     end
@@ -498,7 +503,7 @@ class DownloadError < RuntimeError
     super <<~EOS
       Failed to download resource #{resource.download_name.inspect}
       #{cause.message}
-      EOS
+    EOS
     set_backtrace(cause.backtrace)
   end
 end
@@ -524,9 +529,38 @@ end
 
 # raised by safe_system in utils.rb
 class ErrorDuringExecution < RuntimeError
-  def initialize(cmd, args = [])
-    args = args.map { |a| a.to_s.gsub " ", "\\ " }.join(" ")
-    super "Failure while executing: #{cmd} #{args}"
+  attr_reader :cmd
+  attr_reader :status
+  attr_reader :output
+
+  def initialize(cmd, status:, output: nil)
+    @cmd = cmd
+    @status = status
+    @output = output
+
+    exitstatus = if status.respond_to?(:exitstatus)
+      status.exitstatus
+    else
+      status
+    end
+
+    s = "Failure while executing; `#{cmd.shelljoin.gsub(/\\=/, "=")}` exited with #{exitstatus}."
+
+    unless [*output].empty?
+      format_output_line = lambda do |type, line|
+        if type == :stderr
+          Formatter.error(line)
+        else
+          line
+        end
+      end
+
+      s << " Here's the output:\n"
+      s << output.map(&format_output_line).join
+      s << "\n" unless s.end_with?("\n")
+    end
+
+    super s
   end
 end
 
@@ -547,7 +581,7 @@ class ChecksumMismatchError < RuntimeError
       Actual: #{actual}
       Archive: #{fn}
       To retry an incomplete download, remove the file above.
-      EOS
+    EOS
   end
 end
 
@@ -573,5 +607,24 @@ class BottleFormulaUnavailableError < RuntimeError
         #{bottle_path}
         #{formula_path}
     EOS
+  end
+end
+
+# Raised when a child process sends us an exception over its error pipe.
+class ChildProcessError < RuntimeError
+  attr_reader :inner
+  attr_reader :inner_class
+
+  def initialize(inner)
+    @inner = inner
+    @inner_class = Object.const_get inner["json_class"]
+
+    super <<~EOS
+      An exception occured within a build process:
+        #{inner_class}: #{inner["m"]}
+    EOS
+
+    # Clobber our real (but irrelevant) backtrace with that of the inner exception.
+    set_backtrace inner["b"]
   end
 end

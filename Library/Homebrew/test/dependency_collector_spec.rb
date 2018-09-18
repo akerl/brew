@@ -81,37 +81,37 @@ describe DependencyCollector do
 
     it "creates a resource dependency from a '.7z' URL" do
       resource = Resource.new
-      resource.url("http://example.com/foo.7z")
+      resource.url("https://example.com/foo.7z")
       expect(subject.add(resource)).to eq(Dependency.new("p7zip", [:build]))
     end
 
     it "creates a resource dependency from a '.gz' URL" do
       resource = Resource.new
-      resource.url("http://example.com/foo.tar.gz")
+      resource.url("https://example.com/foo.tar.gz")
       expect(subject.add(resource)).to be nil
     end
 
     it "creates a resource dependency from a '.lz' URL" do
       resource = Resource.new
-      resource.url("http://example.com/foo.lz")
+      resource.url("https://example.com/foo.lz")
       expect(subject.add(resource)).to eq(Dependency.new("lzip", [:build]))
     end
 
     it "creates a resource dependency from a '.lha' URL" do
       resource = Resource.new
-      resource.url("http://example.com/foo.lha")
+      resource.url("https://example.com/foo.lha")
       expect(subject.add(resource)).to eq(Dependency.new("lha", [:build]))
     end
 
     it "creates a resource dependency from a '.lzh' URL" do
       resource = Resource.new
-      resource.url("http://example.com/foo.lzh")
+      resource.url("https://example.com/foo.lzh")
       expect(subject.add(resource)).to eq(Dependency.new("lha", [:build]))
     end
 
     it "creates a resource dependency from a '.rar' URL" do
       resource = Resource.new
-      resource.url("http://example.com/foo.rar")
+      resource.url("https://example.com/foo.rar")
       expect(subject.add(resource)).to eq(Dependency.new("unrar", [:build]))
     end
 
@@ -127,16 +127,6 @@ describe DependencyCollector do
       resource = Resource.new
       resource.download_strategy = Class.new
       expect { subject.add(resource) }.to raise_error(TypeError)
-    end
-
-    it "is deprecated when called with a language module", :needs_compat do
-      expect(subject).to receive(:odeprecated)
-      subject.add("lpeg" => :lua)
-    end
-
-    it "is deprecated when called with deprecated requirements", :needs_compat do
-      expect(subject).to receive(:odeprecated)
-      subject.add(:python)
     end
   end
 end

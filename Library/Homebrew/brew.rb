@@ -12,15 +12,9 @@ if RUBY_X < 2 || (RUBY_X == 2 && RUBY_Y < 3)
   raise "Homebrew must be run under Ruby 2.3! You're running #{RUBY_VERSION}."
 end
 
-require "pathname"
-HOMEBREW_LIBRARY_PATH = Pathname.new(__FILE__).realpath.parent
+require_relative "global"
 
-require "English"
-unless $LOAD_PATH.include?(HOMEBREW_LIBRARY_PATH.to_s)
-  $LOAD_PATH.unshift(HOMEBREW_LIBRARY_PATH.to_s)
-end
-
-require "global"
+require "update_migrator"
 
 begin
   trap("INT", std_trap) # restore default CTRL-C handler
@@ -78,13 +72,13 @@ begin
   # - no arguments are passed
   # - if cmd is Cask, let Cask handle the help command instead
   if (empty_argv || help_flag) && cmd != "cask"
-    require "cmd/help"
-    Homebrew.help cmd, empty_argv: empty_argv
+    require "help"
+    Homebrew::Help.help cmd, empty_argv: empty_argv
     # `Homebrew.help` never returns, except for external/unknown commands.
   end
 
   # Migrate LinkedKegs/PinnedKegs if update didn't already do so
-  migrate_legacy_keg_symlinks_if_necessary
+  UpdateMigrator.migrate_legacy_keg_symlinks_if_necessary
 
   # Uninstall old brew-cask if it's still around; we just use the tap now.
   if cmd == "cask" && (HOMEBREW_CELLAR/"brew-cask").exist?
@@ -119,10 +113,10 @@ begin
     exec HOMEBREW_BREW_FILE, cmd, *ARGV
   end
 rescue UsageError => e
-  require "cmd/help"
-  Homebrew.help cmd, usage_error: e.message
+  require "help"
+  Homebrew::Help.help cmd, usage_error: e.message
 rescue SystemExit => e
-  onoe "Kernel.exit" if ARGV.verbose? && !e.success?
+  onoe "Kernel.exit" if ARGV.debug? && !e.success?
   $stderr.puts e.backtrace if ARGV.debug?
   raise
 rescue Interrupt
@@ -134,6 +128,7 @@ rescue BuildError => e
   exit 1
 rescue RuntimeError, SystemCallError => e
   raise if e.message.empty?
+
   onoe e
   $stderr.puts e.backtrace if ARGV.debug?
   exit 1
@@ -143,6 +138,7 @@ rescue MethodDeprecatedError => e
     $stderr.puts "If reporting this issue please do so at (not Homebrew/brew or halyard/core):"
     $stderr.puts "  #{Formatter.url(e.issues_url)}"
   end
+  $stderr.puts e.backtrace if ARGV.debug?
   exit 1
 rescue Exception => e # rubocop:disable Lint/RescueException
   onoe e

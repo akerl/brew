@@ -48,7 +48,7 @@ module Homebrew
   module_function
 
   def bump_formula_pr
-    @bump_args = Homebrew::CLI::Parser.parse do
+    Homebrew::CLI::Parser.parse do
       switch    "--devel"
       switch    "-n", "--dry-run"
       switch    "--write"
@@ -78,14 +78,6 @@ module Homebrew
     # Use the user's browser, too.
     ENV["BROWSER"] = ENV["HOMEBREW_BROWSER"]
 
-    # Setup GitHub environment variables
-    %w[GITHUB_USER GITHUB_PASSWORD GITHUB_TOKEN].each do |env|
-      homebrew_env = ENV["HOMEBREW_#{env}"]
-      next unless homebrew_env
-      next if homebrew_env.empty?
-      ENV[env] = homebrew_env
-    end
-
     formula = ARGV.formulae.first
 
     if formula
@@ -93,7 +85,7 @@ module Homebrew
       checked_for_duplicates = true
     end
 
-    new_url = @bump_args.url
+    new_url = args.url
     if new_url && !formula
       # Split the new URL on / and find any formulae that have the same URL
       # except for the last component, but don't try to match any more than the
@@ -104,7 +96,7 @@ module Homebrew
       components_to_match = [new_url_split.count - 1, maximum_url_components_to_match].min
       base_url = new_url_split.first(components_to_match).join("/")
       base_url = /#{Regexp.escape(base_url)}/
-      is_devel = @bump_args.devel?
+      is_devel = args.devel?
       guesses = []
       Formula.each do |f|
         if is_devel && f.devel && f.devel.url && f.devel.url.match(base_url)
@@ -123,7 +115,7 @@ module Homebrew
 
     check_for_duplicate_pull_requests(formula) unless checked_for_duplicates
 
-    requested_spec, formula_spec = if @bump_args.devel?
+    requested_spec, formula_spec = if args.devel?
       devel_message = " (devel)"
       [:devel, formula.devel]
     else
@@ -135,11 +127,11 @@ module Homebrew
       [checksum.hash_type, checksum.hexdigest]
     end
 
-    new_hash = @bump_args[hash_type] if hash_type
-    new_tag = @bump_args.tag
-    new_revision = @bump_args.revision
-    new_mirror = @bump_args.mirror
-    forced_version = @bump_args.version
+    new_hash = args[hash_type] if hash_type
+    new_tag = args.tag
+    new_revision = args.revision
+    new_mirror = args.mirror
+    forced_version = args.version
     new_url_hash = if new_url && new_hash
       true
     elsif new_tag && new_revision
@@ -149,7 +141,7 @@ module Homebrew
     elsif !new_url
       odie "#{formula}: no --url= argument specified!"
     else
-      new_mirror = case new_url
+      new_mirror ||= case new_url
       when requested_spec != :devel && %r{.*ftp.gnu.org/gnu.*}
         new_url.sub "ftp.gnu.org/gnu", "ftpmirror.gnu.org"
       when %r{.*mirrors.ocf.berkeley.edu/debian.*}
@@ -176,7 +168,7 @@ module Homebrew
       end
     end
 
-    if @bump_args.dry_run?
+    if args.dry_run?
       ohai "brew update"
     else
       safe_system "brew", "update"
@@ -186,48 +178,87 @@ module Homebrew
 
     replacement_pairs = []
     if requested_spec == :stable && formula.revision.nonzero?
-      replacement_pairs << [/^  revision \d+\n(\n(  head "))?/m, "\\2"]
+      replacement_pairs << [
+        /^  revision \d+\n(\n(  head "))?/m,
+        "\\2",
+      ]
     end
 
     replacement_pairs += formula_spec.mirrors.map do |mirror|
-      [/ +mirror \"#{Regexp.escape(mirror)}\"\n/m, ""]
+      [
+        / +mirror \"#{Regexp.escape(mirror)}\"\n/m,
+        "",
+      ]
     end
 
     replacement_pairs += if new_url_hash
       [
-        [/#{Regexp.escape(formula_spec.url)}/, new_url],
-        [old_hash, new_hash],
+        [
+          /#{Regexp.escape(formula_spec.url)}/,
+          new_url,
+        ],
+        [
+          old_hash,
+          new_hash,
+        ],
       ]
     else
       [
-        [formula_spec.specs[:tag], new_tag],
-        [formula_spec.specs[:revision], new_revision],
+        [
+          formula_spec.specs[:tag],
+          new_tag,
+        ],
+        [
+          formula_spec.specs[:revision],
+          new_revision,
+        ],
       ]
     end
 
-    backup_file = File.read(formula.path) unless @bump_args.dry_run?
+    backup_file = File.read(formula.path) unless args.dry_run?
 
     if new_mirror
-      replacement_pairs << [/^( +)(url \"#{Regexp.escape(new_url)}\"\n)/m, "\\1\\2\\1mirror \"#{new_mirror}\"\n"]
+      replacement_pairs << [
+        /^( +)(url \"#{Regexp.escape(new_url)}\"\n)/m,
+        "\\1\\2\\1mirror \"#{new_mirror}\"\n",
+      ]
     end
 
     if forced_version && forced_version != "0"
       if requested_spec == :stable
         if File.read(formula.path).include?("version \"#{old_formula_version}\"")
-          replacement_pairs << [old_formula_version.to_s, forced_version]
+          replacement_pairs << [
+            old_formula_version.to_s,
+            forced_version,
+          ]
         elsif new_mirror
-          replacement_pairs << [/^( +)(mirror \"#{new_mirror}\"\n)/m, "\\1\\2\\1version \"#{forced_version}\"\n"]
+          replacement_pairs << [
+            /^( +)(mirror \"#{new_mirror}\"\n)/m,
+            "\\1\\2\\1version \"#{forced_version}\"\n",
+          ]
         else
-          replacement_pairs << [/^( +)(url \"#{new_url}\"\n)/m, "\\1\\2\\1version \"#{forced_version}\"\n"]
+          replacement_pairs << [
+            /^( +)(url \"#{new_url}\"\n)/m,
+            "\\1\\2\\1version \"#{forced_version}\"\n",
+          ]
         end
       elsif requested_spec == :devel
-        replacement_pairs << [/(  devel do.+?version \")#{old_formula_version}(\"\n.+?end\n)/m, "\\1#{forced_version}\\2"]
+        replacement_pairs << [
+          /(  devel do.+?version \")#{old_formula_version}(\"\n.+?end\n)/m,
+          "\\1#{forced_version}\\2",
+        ]
       end
     elsif forced_version && forced_version == "0"
       if requested_spec == :stable
-        replacement_pairs << [/^  version \"[\w\.\-\+]+\"\n/m, ""]
+        replacement_pairs << [
+          /^  version \"[\w\.\-\+]+\"\n/m,
+          "",
+        ]
       elsif requested_spec == :devel
-        replacement_pairs << [/(  devel do.+?)^ +version \"[^\n]+\"\n(.+?end\n)/m, "\\1\\2"]
+        replacement_pairs << [
+          /(  devel do.+?)^ +version \"[^\n]+\"\n(.+?end\n)/m,
+          "\\1\\2",
+        ]
       end
     end
     new_contents = inreplace_pairs(formula.path, replacement_pairs)
@@ -235,31 +266,31 @@ module Homebrew
     new_formula_version = formula_version(formula, requested_spec, new_contents)
 
     if new_formula_version < old_formula_version
-      formula.path.atomic_write(backup_file) unless @bump_args.dry_run?
+      formula.path.atomic_write(backup_file) unless args.dry_run?
       odie <<~EOS
         You probably need to bump this formula manually since changing the
         version from #{old_formula_version} to #{new_formula_version} would be a downgrade.
       EOS
     elsif new_formula_version == old_formula_version
-      formula.path.atomic_write(backup_file) unless @bump_args.dry_run?
+      formula.path.atomic_write(backup_file) unless args.dry_run?
       odie <<~EOS
         You probably need to bump this formula manually since the new version
         and old version are both #{new_formula_version}.
       EOS
     end
 
-    if @bump_args.dry_run?
-      if @bump_args.strict?
+    if args.dry_run?
+      if args.strict?
         ohai "brew audit --strict #{formula.path.basename}"
-      elsif @bump_args.audit?
+      elsif args.audit?
         ohai "brew audit #{formula.path.basename}"
       end
     else
       failed_audit = false
-      if @bump_args.strict?
+      if args.strict?
         system HOMEBREW_BREW_FILE, "audit", "--strict", formula.path
         failed_audit = !$CHILD_STATUS.success?
-      elsif @bump_args.audit?
+      elsif args.audit?
         system HOMEBREW_BREW_FILE, "audit", formula.path
         failed_audit = !$CHILD_STATUS.success?
       end
@@ -274,11 +305,12 @@ module Homebrew
       git_dir = Utils.popen_read("git rev-parse --git-dir").chomp
       shallow = !git_dir.empty? && File.exist?("#{git_dir}/shallow")
 
-      if @bump_args.dry_run?
+      if args.dry_run?
         ohai "fork repository with GitHub API"
         ohai "git fetch --unshallow origin" if shallow
         ohai "git checkout --no-track -b #{branch} origin/master"
-        ohai "git commit --no-edit --verbose --message='#{formula.name} #{new_formula_version}#{devel_message}' -- #{formula.path}"
+        ohai "git commit --no-edit --verbose --message='#{formula.name} " \
+             "#{new_formula_version}#{devel_message}' -- #{formula.path}"
         ohai "git push --set-upstream $HUB_REMOTE #{branch}:#{branch}"
         ohai "create pull request with GitHub API"
         ohai "git checkout -"
@@ -289,11 +321,15 @@ module Homebrew
           # GitHub API responds immediately but fork takes a few seconds to be ready.
           sleep 3
         rescue *GitHub.api_errors => e
-          formula.path.atomic_write(backup_file) unless @bump_args.dry_run?
+          formula.path.atomic_write(backup_file) unless args.dry_run?
           odie "Unable to fork: #{e.message}!"
         end
 
-        remote_url = response.fetch("clone_url")
+        if system("git", "config", "--local", "--get-regexp", "remote\..*\.url", "git@github.com:.*")
+          remote_url = response.fetch("ssh_url")
+        else
+          remote_url = response.fetch("clone_url")
+        end
         username = response.fetch("owner").fetch("login")
 
         safe_system "git", "fetch", "--unshallow", "origin" if shallow
@@ -306,7 +342,7 @@ module Homebrew
         pr_message = <<~EOS
           Created with `brew bump-formula-pr`.
         EOS
-        user_message = @bump_args.message
+        user_message = args.message
         if user_message
           pr_message += "\n" + <<~EOS
             ---
@@ -319,7 +355,7 @@ module Homebrew
         begin
           url = GitHub.create_pull_request(formula.tap.full_name, pr_title,
                                            "#{username}:#{branch}", "master", pr_message)["html_url"]
-          if @bump_args.no_browse?
+          if args.no_browse?
             puts url
           else
             exec_browser url
@@ -332,19 +368,24 @@ module Homebrew
   end
 
   def inreplace_pairs(path, replacement_pairs)
-    if @bump_args.dry_run?
+    if args.dry_run?
       contents = path.open("r") { |f| Formulary.ensure_utf8_encoding(f).read }
       contents.extend(StringInreplaceExtension)
       replacement_pairs.each do |old, new|
         unless Homebrew.args.quiet?
           ohai "replace #{old.inspect} with #{new.inspect}"
         end
+        unless old
+          raise "No old value for new value #{new}! Did you pass the wrong arguments?"
+        end
+
         contents.gsub!(old, new)
       end
       unless contents.errors.empty?
         raise Utils::InreplaceError, path => contents.errors
       end
-      path.atomic_write(contents) if @bump_args.write?
+
+      path.atomic_write(contents) if args.write?
       contents
     else
       Utils::Inreplace.inreplace(path) do |s|
@@ -352,6 +393,10 @@ module Homebrew
           unless Homebrew.args.quiet?
             ohai "replace #{old.inspect} with #{new.inspect}"
           end
+          unless old
+            raise "No old value for new value #{new}! Did you pass the wrong arguments?"
+          end
+
           s.gsub!(old, new)
         end
       end
@@ -383,6 +428,7 @@ module Homebrew
     pull_requests = fetch_pull_requests(formula)
     return unless pull_requests
     return if pull_requests.empty?
+
     duplicates_message = <<~EOS
       These open pull requests may be duplicates:
       #{pull_requests.map { |pr| "#{pr["title"]} #{pr["html_url"]}" }.join("\n")}

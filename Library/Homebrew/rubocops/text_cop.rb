@@ -1,4 +1,4 @@
-require_relative "./extend/formula_cop"
+require "rubocops/extend/formula_cop"
 
 module RuboCop
   module Cop
@@ -34,6 +34,7 @@ module RuboCop
 
           find_every_method_call_by_name(body_node, :xcodebuild).each do |m|
             next if parameters_passed?(m, /SYMROOT=/)
+
             problem 'xcodebuild should be passed an explicit "SYMROOT"'
           end
 
@@ -47,6 +48,16 @@ module RuboCop
 
           find_method_with_args(body_node, :system, "go", "get") do
             problem "Do not use `go get`. Please ask upstream to implement Go vendoring"
+          end
+
+          find_method_with_args(body_node, :system, "dep", "ensure") do |d|
+            next if parameters_passed?(d, /vendor-only/)
+
+            problem "use \"dep\", \"ensure\", \"-vendor-only\""
+          end
+
+          find_method_with_args(body_node, :system, "cargo", "build") do
+            problem "use \"cargo\", \"install\", \"--root\", prefix, \"--path\", \".\""
           end
         end
       end

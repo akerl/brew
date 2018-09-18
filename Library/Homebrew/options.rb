@@ -1,4 +1,3 @@
-
 class Option
   attr_reader :name, :description, :flag
 
@@ -14,6 +13,7 @@ class Option
 
   def <=>(other)
     return unless other.is_a?(Option)
+
     name <=> other.name
   end
 

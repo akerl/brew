@@ -1,6 +1,4 @@
-$LOAD_PATH.push(HOMEBREW_LIBRARY_PATH.join("cask", "lib").to_s)
-
-require "hbc"
+require "cask/all"
 
 require "test/support/helper/cask/fake_system_command"
 require "test/support/helper/cask/install_helper"
@@ -13,10 +11,10 @@ HOMEBREW_CASK_DIRS = {
   :servicedir  => Pathname.new(TEST_TMPDIR).join("cask-servicedir"),
 }.freeze
 
-RSpec.shared_context "Homebrew-Cask" do
+RSpec.shared_context "Homebrew Cask", :needs_macos do
   before do
     HOMEBREW_CASK_DIRS.each do |method, path|
-      allow(Hbc::Config.global).to receive(method).and_return(path)
+      allow(Cask::Config.global).to receive(method).and_return(path)
     end
   end
 
@@ -25,9 +23,9 @@ RSpec.shared_context "Homebrew-Cask" do
     begin
       HOMEBREW_CASK_DIRS.values.each(&:mkpath)
 
-      [Hbc::Config.global.binarydir, Hbc.caskroom, Hbc.cache].each(&:mkpath)
+      Cask::Config.global.binarydir.mkpath
 
-      Hbc.default_tap = Tap.fetch("Homebrew", "cask-spec").tap do |tap|
+      Tap.default_cask_tap.tap do |tap|
         FileUtils.mkdir_p tap.path.dirname
         FileUtils.ln_sf TEST_FIXTURE_DIR.join("cask"), tap.path
       end
@@ -40,8 +38,8 @@ RSpec.shared_context "Homebrew-Cask" do
       example.run
     ensure
       FileUtils.rm_rf HOMEBREW_CASK_DIRS.values
-      FileUtils.rm_rf [Hbc::Config.global.binarydir, Hbc.caskroom, Hbc.cache]
-      Hbc.default_tap.path.unlink
+      FileUtils.rm_rf [Cask::Config.global.binarydir, Cask::Caskroom.path, Cask::Cache.path]
+      Tap.default_cask_tap.path.unlink
       third_party_tap.path.unlink
       FileUtils.rm_rf third_party_tap.path.parent
     end
@@ -49,5 +47,5 @@ RSpec.shared_context "Homebrew-Cask" do
 end
 
 RSpec.configure do |config|
-  config.include_context "Homebrew-Cask", :cask
+  config.include_context "Homebrew Cask", :cask
 end

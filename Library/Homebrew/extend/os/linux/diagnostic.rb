@@ -8,6 +8,7 @@ module Homebrew
       def check_tmpdir_sticky_bit
         message = generic_check_tmpdir_sticky_bit
         return if message.nil?
+
         message + <<~EOS
           If you don't have administrative privileges on this machine,
           create a directory and set the HOMEBREW_TEMP environment variable,
@@ -17,9 +18,28 @@ module Homebrew
         EOS
       end
 
+      def check_tmpdir_executable
+        f = Tempfile.new(%w[homebrew_check_tmpdir_executable .sh], HOMEBREW_TEMP)
+        f.write "#!/bin/sh\n"
+        f.chmod 0700
+        f.close
+        return if system f.path
+
+        <<~EOS.undent
+          The directory #{HOMEBREW_TEMP} does not permit executing
+          programs. It is likely mounted as "noexec". Please set HOMEBREW_TEMP
+          in your #{shell_profile} to a different directory, for example:
+            export HOMEBREW_TEMP=~/tmp
+            echo 'export HOMEBREW_TEMP=~/tmp' >> #{shell_profile}
+        EOS
+      ensure
+        f.unlink
+      end
+
       def check_xdg_data_dirs
-        return if ENV["XDG_DATA_DIRS"].to_s.empty?
+        return if ENV["XDG_DATA_DIRS"].blank?
         return if ENV["XDG_DATA_DIRS"].split("/").include?(HOMEBREW_PREFIX/"share")
+
         <<~EOS
           Homebrew's share was not found in your XDG_DATA_DIRS but you have
           this variable set to include other locations.

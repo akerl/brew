@@ -24,7 +24,7 @@ module Formulary
     const_set(namespace, mod)
     begin
       mod.module_eval(contents, path)
-    rescue ScriptError => e
+    rescue NameError, ArgumentError, ScriptError => e
       raise FormulaUnreadableError.new(name, e)
     end
     class_name = class_s(name)
@@ -47,14 +47,40 @@ module Formulary
     cache[path] = klass
   end
 
-  if IO.method_defined?(:set_encoding)
-    def self.ensure_utf8_encoding(io)
-      io.set_encoding(Encoding::UTF_8)
+  def self.resolve(name, spec: nil)
+    if name.include?("/") || File.exist?(name)
+      f = factory(name, *spec)
+      if f.any_version_installed?
+        tab = Tab.for_formula(f)
+        resolved_spec = spec || tab.spec
+        f.active_spec = resolved_spec if f.send(resolved_spec)
+        f.build = tab
+        if f.head? && tab.tabfile
+          k = Keg.new(tab.tabfile.parent)
+          f.version.update_commit(k.version.version.commit) if k.version.head?
+        end
+      end
+    else
+      rack = to_rack(name)
+      alias_path = factory(name).alias_path
+      f = from_rack(rack, *spec, alias_path: alias_path)
     end
-  else
-    def self.ensure_utf8_encoding(io)
-      io
-    end
+
+    # If this formula was installed with an alias that has since changed,
+    # then it was specified explicitly in ARGV. (Using the alias would
+    # instead have found the new formula.)
+    #
+    # Because of this, the user is referring to this specific formula,
+    # not any formula targetted by the same alias, so in this context
+    # the formula shouldn't be considered outdated if the alias used to
+    # install it has changed.
+    f.follow_installed_alias = false
+
+    f
+  end
+
+  def self.ensure_utf8_encoding(io)
+    io.set_encoding(Encoding::UTF_8)
   end
 
   def self.class_s(name)
@@ -98,6 +124,7 @@ module Formulary
     def load_file
       $stderr.puts "#{$PROGRAM_NAME} (#{self.class.name}): loading #{path}" if ARGV.debug?
       raise FormulaUnavailableError, name unless path.file?
+
       Formulary.load_formula_from_path(name, path)
     end
   end
@@ -111,11 +138,11 @@ module Formulary
         formula_name = File.basename(bottle_name)[/(.+)-/, 1]
         resource = Resource.new(formula_name) { url bottle_name }
         resource.specs[:bottle] = true
-        downloader = CurlDownloadStrategy.new resource.name, resource
-        @bottle_filename = downloader.cached_location
-        cached = @bottle_filename.exist?
+        downloader = resource.downloader
+        cached = downloader.cached_location.exist?
         downloader.fetch
         ohai "Pouring the cached bottle" if cached
+        @bottle_filename = downloader.cached_location
       else
         @bottle_filename = Pathname(bottle_name).realpath
       end
@@ -277,6 +304,8 @@ module Formulary
   # * a formula URL
   # * a local bottle reference
   def self.factory(ref, spec = :stable, alias_path: nil, from: nil)
+    raise ArgumentError, "Formulae must have a ref!" unless ref
+
     loader_for(ref, from: from).get_formula(spec, alias_path: alias_path)
   end
 
@@ -288,13 +317,20 @@ module Formulary
   # to install the formula will be set instead.
   def self.from_rack(rack, spec = nil, alias_path: nil)
     kegs = rack.directory? ? rack.subdirs.map { |d| Keg.new(d) } : []
-    keg = kegs.detect(&:linked?) || kegs.detect(&:optlinked?) || kegs.max_by(&:version)
+    keg = kegs.find(&:linked?) || kegs.find(&:optlinked?) || kegs.max_by(&:version)
 
     if keg
       from_keg(keg, spec, alias_path: alias_path)
     else
       factory(rack.basename.to_s, spec || :stable, alias_path: alias_path, from: :rack)
     end
+  end
+
+  # Return whether given rack is keg-only
+  def self.keg_only?(rack)
+    Formulary.from_rack(rack).keg_only?
+  rescue FormulaUnavailableError, TapFormulaAmbiguityError, TapFormulaWithOldnameAmbiguityError
+    false
   end
 
   # Return a Formula instance for the given keg.
@@ -430,7 +466,7 @@ module Formulary
                       "#{tap}HomebrewFormula/#{name}.rb",
                       "#{tap}#{name}.rb",
                       "#{tap}Aliases/#{name}",
-                    ]).detect(&:file?)
+                    ]).find(&:file?)
     end.compact
   end
 

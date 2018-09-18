@@ -12,51 +12,51 @@ module Homebrew
         case name.downcase
         when "gem", /^rubygems?$/ then <<~EOS
           Homebrew provides gem via: `brew install ruby`.
-          EOS
+        EOS
         when "tex", "tex-live", "texlive", "latex" then <<~EOS
           Installing TeX from source is weird and gross, requires a lot of patches,
           and only builds 32-bit (and thus can't use Homebrew dependencies)
 
           We recommend using a MacTeX distribution: https://www.tug.org/mactex/
 
-          You can install it with Homebrew-Cask:
+          You can install it with Homebrew Cask:
             brew cask install mactex
-          EOS
+        EOS
         when "pip" then <<~EOS
           Homebrew provides pip via: `brew install python`. However you will then
           have two Pythons installed on your Mac, so alternatively you can install
           pip via the instructions at:
             #{Formatter.url("https://pip.readthedocs.io/en/stable/installing/")}
-          EOS
+        EOS
         when "pil" then <<~EOS
           Instead of PIL, consider `pip2 install pillow`.
-          EOS
+        EOS
         when "macruby" then <<~EOS
           MacRuby is not packaged and is on an indefinite development hiatus.
           You can read more about it at:
             #{Formatter.url("https://github.com/MacRuby/MacRuby")}
-          EOS
+        EOS
         when /(lib)?lzma/
           "lzma is now part of the xz formula."
         when "gtest", "googletest", "google-test" then <<~EOS
           Installing gtest system-wide is not recommended; it should be vendored
           in your projects that use it.
-          EOS
+        EOS
         when "gmock", "googlemock", "google-mock" then <<~EOS
           Installing gmock system-wide is not recommended; it should be vendored
           in your projects that use it.
-          EOS
+        EOS
         when "sshpass" then <<~EOS
           We won't add sshpass because it makes it too easy for novice SSH users to
           ruin SSH's security.
-          EOS
+        EOS
         when "gsutil" then <<~EOS
           Install gsutil with `pip2 install gsutil`
-          EOS
+        EOS
         when "gfortran" then <<~EOS
           GNU Fortran is now provided as part of GCC, and can be installed with:
             brew install gcc
-          EOS
+        EOS
         when "play" then <<~EOS
           Play 2.3 replaces the play command with activator:
             brew install typesafe-activator
@@ -64,24 +64,21 @@ module Homebrew
           You can read more about this change at:
             #{Formatter.url("https://www.playframework.com/documentation/2.3.x/Migration23")}
             #{Formatter.url("https://www.playframework.com/documentation/2.3.x/Highlights23")}
-          EOS
+        EOS
         when "haskell-platform" then <<~EOS
-          We no longer package haskell-platform. Consider installing ghc
-          and cabal-install instead:
-            brew install ghc cabal-install
-
-          You can install with Homebrew-Cask:
-            brew cask install haskell-platform
-          EOS
+          We no longer package haskell-platform. Consider installing ghc,
+          cabal-install and stack instead:
+            brew install ghc cabal-install stack
+        EOS
         when "mysqldump-secure" then <<~EOS
           The creator of mysqldump-secure tried to game our popularity metrics.
-          EOS
+        EOS
         when "ngrok" then <<~EOS
           Upstream sunsetted 1.x in March 2016 and 2.x is not open-source.
 
-          If you wish to use the 2.x release you can install with Homebrew-Cask:
+          If you wish to use the 2.x release you can install with Homebrew Cask:
             brew cask install ngrok
-          EOS
+        EOS
         end
       end
       alias generic_blacklisted_reason blacklisted_reason
@@ -123,8 +120,10 @@ module Homebrew
       def deleted_reason(name, silent: false)
         path = Formulary.path name
         return if File.exist? path
+
         tap = Tap.from_path(path)
         return if tap.nil? || !File.exist?(tap.path)
+
         relative_path = path.relative_path_from tap.path
 
         tap.path.cd do
@@ -139,12 +138,13 @@ module Homebrew
             end
           end
 
-          log_command = "git log --since='1 month ago' --diff-filter=D --name-only --max-count=1 --format=%H\\\\n%h\\\\n%B -- #{relative_path}"
+          log_command = "git log --since='1 month ago' --diff-filter=D " \
+                        "--name-only --max-count=1 " \
+                        "--format=%H\\\\n%h\\\\n%B -- #{relative_path}"
           hash, short_hash, *commit_message, relative_path =
             Utils.popen_read(log_command).gsub("\\n", "\n").lines.map(&:chomp)
 
-          if hash.to_s.empty? || short_hash.to_s.empty? ||
-             relative_path.to_s.empty?
+          if hash.blank? || short_hash.blank? || relative_path.blank?
             ofail "No previously deleted formula found." unless silent
             return
           end
