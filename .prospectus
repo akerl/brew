@@ -1,0 +1,11 @@
+item do
+  expected do
+    github_release
+    repo 'homebrew/brew'
+  end
+
+  actual do
+    git_tag
+    regex /^(.*)-\d+$/
+  end
+end
