@@ -1,5 +1,6 @@
 inherit_from:
   - ../.rubocop.yml
+  - .rubocop_todo.yml
 
 AllCops:
   Include:
@@ -96,11 +97,6 @@ Naming/UncommunicativeMethodParamName:
     - 's'
     - 'to'
     - 'v'
-
-# Auto-correct is broken (https://github.com/rubocop-hq/rubocop/issues/6258)
-# and layout is not configurable (https://github.com/rubocop-hq/rubocop/issues/6254).
-Layout/RescueEnsureAlignment:
-  Enabled: false
 
 # Avoid false positives on modifiers used on symbols of methods
 # See https://github.com/rubocop-hq/rubocop/issues/5953

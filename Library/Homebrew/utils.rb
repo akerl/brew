@@ -5,7 +5,6 @@ require "utils/fork"
 require "utils/formatter"
 require "utils/git"
 require "utils/github"
-require "utils/hash"
 require "utils/inreplace"
 require "utils/link"
 require "utils/popen"
@@ -293,12 +292,6 @@ end
 
 def with_custom_locale(locale)
   with_env(LC_ALL: locale) do
-    yield
-  end
-end
-
-def run_as_not_developer
-  with_env(HOMEBREW_DEVELOPER: nil) do
     yield
   end
 end
