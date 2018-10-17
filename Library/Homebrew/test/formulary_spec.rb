@@ -255,7 +255,7 @@ describe Formulary do
     it "returns the path to a Formula in the core tap" do
       name = "foo-bar"
       expect(described_class.core_path(name))
-        .to eq(Pathname.new("#{HOMEBREW_LIBRARY}/Taps/homebrew/homebrew-core/Formula/#{name}.rb"))
+        .to eq(Pathname.new("#{HOMEBREW_LIBRARY}/Taps/halyard/homebrew-core/Formula/#{name}.rb"))
     end
   end
 end

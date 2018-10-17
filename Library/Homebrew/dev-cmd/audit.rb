@@ -1065,7 +1065,7 @@ module Homebrew
     end
 
     def self.curl_openssl_and_deps
-      return []
+      @curl_openssl_deps ||= []
       @curl_openssl_and_deps ||= begin
         formulae_names = ["curl", "openssl"]
         formulae_names += formulae_names.flat_map do |f|

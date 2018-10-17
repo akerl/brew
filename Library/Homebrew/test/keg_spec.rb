@@ -328,7 +328,7 @@ describe Keg do
     def stub_formula_name(name)
       f = formula(name) { url "foo-1.0" }
       stub_formula_loader f
-      stub_formula_loader f, "homebrew/core/#{f}"
+      stub_formula_loader f, "halyard/core/#{f}"
       f
     end
 
@@ -404,7 +404,7 @@ describe Keg do
     specify "renamed dependency" do
       dependencies nil
 
-      stub_formula_loader Formula["foo"], "homebrew/core/foo-old"
+      stub_formula_loader Formula["foo"], "halyard/core/foo-old"
       renamed_path = HOMEBREW_CELLAR/"foo-old"
       (HOMEBREW_CELLAR/"foo").rename(renamed_path)
       renamed_keg = described_class.new(renamed_path/"1.0")

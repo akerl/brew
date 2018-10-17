@@ -101,7 +101,7 @@ describe Tap do
   end
 
   specify "attributes" do
-    expect(subject.user).to eq("Homebrew")
+    expect(subject.user).to eq("halyard")
     expect(subject.repo).to eq("foo")
     expect(subject.name).to eq("homebrew/foo")
     expect(subject.path).to eq(path)

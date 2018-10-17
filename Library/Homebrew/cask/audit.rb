@@ -34,7 +34,7 @@ module Cask
       check_single_pre_postflight
       check_single_uninstall_zap
       check_untrusted_pkg
-      #check_hosting_with_appcast
+      # check_hosting_with_appcast
       check_latest_with_appcast
       check_latest_with_auto_updates
       check_stanza_requires_uninstall
