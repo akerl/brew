@@ -74,7 +74,7 @@ class Tab < OpenStruct
 
     if attributes["source"]["tap"] == "mxcl/master" ||
        attributes["source"]["tap"] == "Homebrew/homebrew"
-      attributes["source"]["tap"] = "homebrew/core"
+      attributes["source"]["tap"] = "halyard/core"
     end
 
     if attributes["source"]["spec"].nil?

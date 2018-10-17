@@ -80,7 +80,7 @@ module Homebrew
     fc = FormulaCreator.new
     fc.name = name
     fc.version = version
-    fc.tap = Tap.fetch(tap || "homebrew/core")
+    fc.tap = Tap.fetch(tap || "halyard/core")
     raise TapUnavailableError, tap unless fc.tap.installed?
 
     fc.url = url
