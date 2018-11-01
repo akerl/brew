@@ -1,5 +1,5 @@
 brew(1) -- The missing package manager for macOS
-===============================================
+================================================
 
 ## SYNOPSIS
 
@@ -177,7 +177,7 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
     current or newest version of macOS, even if it would not be used during
     installation.
 
-  * `gist-logs` [`--new-issue`|`-n`] *`formula`*:
+  * `gist-logs` [`--new-issue`|`-n`] [`--private`|`-p`] *`formula`*:
     Upload logs for a failed build of *`formula`* to a new Gist.
 
     *`formula`* is usually the name of the formula to install, but it can be specified
@@ -187,6 +187,9 @@ With `--verbose` or `-v`, many commands print extra debugging information. Note 
 
     If `--new-issue` is passed, automatically create a new issue in the appropriate
     GitHub repository as well as creating the Gist.
+
+    If `--private` is passed, the Gist will be marked private and will not
+    appear in listings but will be accessible with the link.
 
     If no logs are found, an error message is presented.
 
@@ -756,8 +759,8 @@ formula already uses.
   Print what would be done rather than doing it.
 * `--write`:
   When passed along with `--dry-run`, perform a not-so-dry run by making the expected file modifications but not taking any Git actions.
-* `--audit`:
-  Run `brew audit` before opening the PR.
+* `--no-audit`:
+  Don't run `brew audit` before opening the PR.
 * `--strict`:
   Run `brew audit --strict` before opening the PR.
 * `--no-browse`:
@@ -1044,26 +1047,26 @@ These options are applicable across all sub-commands.
   * `services` *`command`*:
     Integrates Homebrew formulae with macOS' `launchctl` manager.
 
-    [*`sudo`*] `brew services list`
-    List all running services for the current user (or *`root`*)
+    [`sudo`] `brew services list`:
+    List all running services for the current user (or root).
 
-    [*`sudo`*] `brew services run` *`formula|--all`*
-    Run the service *`formula`* without starting at login (or boot).
+    [`sudo`] `brew services run` (*`formula`*|`--all`):
+    Run the service *`formula`* without registering to launch at login (or boot).
 
-    [*`sudo`*] `brew services` `start` *`formula|--all`*
-    Start the service *`formula`* immediately and register it to launch at login (or *`boot`*).
+    [`sudo`] `brew services start` (*`formula`*|`--all`):
+    Start the service *`formula`* immediately and register it to launch at login (or boot).
 
-    [*`sudo`*] `brew services` `stop` *`formula|--all`*
-    Stop the service *`formula`* immediately and unregister it from launching at login (or *`boot`*).
+    [`sudo`] `brew services stop` (*`formula`*|`--all`):
+    Stop the service *`formula`* immediately and unregister it from launching at login (or boot).
 
-    [*`sudo`*] `brew services` `restart` *`formula|--all`*
-    Stop (if necessary) and start the service immediately and register it to launch at login (or *`boot`*).
+    [`sudo`] `brew services restart` (*`formula`*|`--all`):
+    Stop (if necessary) and start the service *`formula`* immediately and register it to launch at login (or boot).
 
-    [*`sudo`*] `brew services` `cleanup`
+    [`sudo`] `brew services cleanup`:
     Remove all unused services.
 
     If `sudo` is passed, operate on `/Library/LaunchDaemons` (started at boot).
-    Otherwise, operate on `~/Library/LaunchAgents (started at login)`.
+    Otherwise, operate on `~/Library/LaunchAgents` (started at login).
 
     **Homebrew/homebrew-services**: <https://github.com/Homebrew/homebrew-services>
 
@@ -1097,6 +1100,7 @@ can take several different forms:
     The formula file will be cached for later use.
 
 ## ENVIRONMENT
+
 Note that environment variables must have a value set to be detected. For example, `export HOMEBREW_NO_INSECURE_REDIRECT=1` rather than just `export HOMEBREW_NO_INSECURE_REDIRECT`.
 
   * `HOMEBREW_ARTIFACT_DOMAIN`:
@@ -1172,22 +1176,16 @@ Note that environment variables must have a value set to be detected. For exampl
     editors will do strange things in this case.
 
   * `HOMEBREW_FORCE_BREWED_CURL`:
-    If set, Homebrew will use a Homebrew-installed `curl` rather than the
-    system version.
+    If set, Homebrew will always use a Homebrew-installed `curl` rather than the
+    system version. Automatically set if the system version of `curl` is too old.
 
   * `HOMEBREW_FORCE_VENDOR_RUBY`:
     If set, Homebrew will always use its vendored, relocatable Ruby version
     even if the system version of Ruby is new enough.
 
-  * `HOMEBREW_GIT`:
-    When using Git, Homebrew will use `GIT` if set,
-    a Homebrew-built Git if installed, or the system-provided binary.
-
-    Set this to force Homebrew to use a particular git binary.
-
   * `HOMEBREW_FORCE_BREWED_GIT`:
-    If set, Homebrew will use a Homebrew-installed `git` rather than the
-    system version.
+    If set, Homebrew will always use a Homebrew-installed `git` rather than the
+    system version. Automatically set if the system version of `git` is too old.
 
   * `HOMEBREW_GITHUB_API_TOKEN`:
     A personal access token for the GitHub API, which you can create at
@@ -1312,7 +1310,7 @@ Homebrew/brew's other current maintainers are Claudia, Michka Popoff, Shaun Jack
 
 Homebrew/brew's Linux support (and Linuxbrew) maintainers are Michka Popoff and Shaun Jackman.
 
-Homebrew/homebrew-core's other current maintainers are Claudia, Michka Popoff, Shaun Jackman, Chongyu Zhu, commitay, Izaak Beekman, Sean Molenaar, Jan Viljanen, Viktor Szakats, FX Coudert, Thierry Moisan, Steven Peters, JCount, Misty De Meo and Tom Schoonjans.
+Homebrew/homebrew-core's other current maintainers are Claudia, Michka Popoff, Shaun Jackman, Chongyu Zhu, commitay, Izaak Beekman, Sean Molenaar, Jan Viljanen, Jason Tedor, Viktor Szakats, FX Coudert, Thierry Moisan, Steven Peters, JCount, Misty De Meo and Tom Schoonjans.
 
 Former maintainers with significant contributions include Dominyk Tiller, Tim Smith, Baptiste Fontaine, Xu Cheng, Martin Afanasjew, Brett Koonce, Charlie Sharpsteen, Jack Nagel, Adam Vandenberg, Andrew Janke, Alex Dunn, neutric, Tomasz Pajor, Uladzislau Shablinski, Alyssa Ross, ilovezfs and Homebrew's creator: Max Howell.
 
