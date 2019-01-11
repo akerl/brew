@@ -2,10 +2,29 @@ if ENV["HOMEBREW_TESTS_COVERAGE"]
   require "simplecov"
 
   formatters = [SimpleCov::Formatter::HTMLFormatter]
-  if ENV["HOMEBREW_CODECOV_TOKEN"] || ENV["HOMEBREW_TRAVIS_CI"]
-    require "codecov"
-    formatters << SimpleCov::Formatter::Codecov
-    ENV["CODECOV_TOKEN"] = ENV["HOMEBREW_CODECOV_TOKEN"]
+  if ENV["HOMEBREW_COVERALLS_REPO_TOKEN"]
+    require "coveralls"
+
+    if !ENV["HOMEBREW_COLOR"] && (ENV["HOMEBREW_NO_COLOR"] || !$stdout.tty?)
+      Coveralls::Output.no_color
+    end
+
+    formatters << Coveralls::SimpleCov::Formatter
+
+    if ENV["TEST_ENV_NUMBER"]
+      SimpleCov.at_exit do
+        result = SimpleCov.result
+        result.format! if ParallelTests.number_of_running_processes <= 1
+      end
+    end
+
+    ENV["CI_NAME"] = ENV["HOMEBREW_CI_NAME"]
+    ENV["CI_JOB_ID"] = ENV["TEST_ENV_NUMBER"] || "1"
+    ENV["CI_BUILD_NUMBER"] = ENV["HOMEBREW_CI_BUILD_NUMBER"]
+    ENV["CI_BUILD_URL"] = ENV["HOMEBREW_CI_BUILD_URL"]
+    ENV["CI_BRANCH"] = ENV["HOMEBREW_CI_BRANCH"]
+    ENV["CI_PULL_REQUEST"] = ENV["HOMEBREW_CI_PULL_REQUEST"]
+    ENV["COVERALLS_REPO_TOKEN"] = ENV["HOMEBREW_COVERALLS_REPO_TOKEN"]
   end
 
   if ENV["HOMEBREW_AZURE_PIPELINES"]
@@ -53,7 +72,7 @@ RSpec.configure do |config|
 
   config.filter_run_when_matching :focus
 
-  config.silence_filter_announcements = true
+  config.silence_filter_announcements = true if ENV["TEST_ENV_NUMBER"]
 
   # TODO: when https://github.com/rspec/rspec-expectations/pull/1056
   #       makes it into a stable release:
