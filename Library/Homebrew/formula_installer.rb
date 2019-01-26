@@ -209,7 +209,7 @@ class FormulaInstaller
   def install
     start_time = Time.now
     if !formula.bottle_unneeded? && !pour_bottle? && DevelopmentTools.installed?
-      Homebrew::Install.perform_development_tools_checks
+      Homebrew::Install.perform_build_from_source_checks
     end
 
     # not in initialize so upgrade can unlink the active keg before calling this
@@ -296,7 +296,9 @@ class FormulaInstaller
           formula.prefix.rmtree if formula.prefix.directory?
           formula.rack.rmdir_if_possible
         end
-        raise if ARGV.homebrew_developer? || e.is_a?(Interrupt)
+        raise if ARGV.homebrew_developer? ||
+                 e.is_a?(Interrupt) ||
+                 ENV["HOMEBREW_NO_BOTTLE_SOURCE_FALLBACK"]
 
         @pour_failed = true
         onoe e.message

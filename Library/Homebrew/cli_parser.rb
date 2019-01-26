@@ -59,6 +59,7 @@ module Homebrew
 
         enable_switch(*names) if !env.nil? && !ENV["HOMEBREW_#{env.to_s.upcase}"].nil?
       end
+      alias switch_option switch
 
       def usage_banner(text)
         @parser.banner = "#{text}\n"
@@ -123,7 +124,12 @@ module Homebrew
       end
 
       def parse(cmdline_args = ARGV)
-        remaining_args = @parser.parse(cmdline_args)
+        begin
+          remaining_args = @parser.parse(cmdline_args)
+        rescue OptionParser::InvalidOption => e
+          $stderr.puts generate_help_text
+          raise e
+        end
         check_constraint_violations
         Homebrew.args[:remaining] = remaining_args
         Homebrew.args.freeze

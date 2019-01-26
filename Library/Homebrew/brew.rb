@@ -10,7 +10,24 @@ if RUBY_X < 2 || (RUBY_X == 2 && RUBY_Y < 3)
   raise "Homebrew must be run under Ruby 2.3! You're running #{RUBY_VERSION}."
 end
 
-require_relative "global"
+# Also define here so we can rescue regardless of location.
+class MissingEnvironmentVariables < RuntimeError; end
+
+begin
+  require_relative "global"
+rescue MissingEnvironmentVariables => e
+  raise e if ENV["HOMEBREW_MISSING_ENV_RETRY"]
+
+  if ENV["HOMEBREW_DEVELOPER"]
+    $stderr.puts <<~EOS
+      Warning: #{e.message}
+      Retrying with `exec #{ENV["HOMEBREW_BREW_FILE"]}`!
+    EOS
+  end
+
+  ENV["HOMEBREW_MISSING_ENV_RETRY"] = "1"
+  exec ENV["HOMEBREW_BREW_FILE"], *ARGV
+end
 
 begin
   trap("INT", std_trap) # restore default CTRL-C handler
