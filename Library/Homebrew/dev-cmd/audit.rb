@@ -1,40 +1,3 @@
-#:  * `audit` [`--strict`] [`--fix`] [`--online`] [`--new-formula`] [`--display-cop-names`] [`--display-filename`] [`--only=`<method>|`--except=`<method>] [`--only-cops=`<cops>|`--except-cops=`<cops>] [<formulae>]:
-#:    Check <formulae> for Homebrew coding style violations. This should be run
-#:    before submitting a new formula. Will exit with a non-zero status if any errors
-#:    are found, which can be useful for implementing pre-commit hooks.
-#:
-#:    If no <formulae> are provided, all of them are checked.
-#:
-#:    If `--strict` is passed, additional checks are run, including RuboCop
-#:    style checks.
-#:
-#:    If `--fix` is passed, style violations will be
-#:    automatically fixed using RuboCop's auto-correct feature.
-#:
-#:    If `--online` is passed, additional slower checks that require a network
-#:    connection are run.
-#:
-#:    If `--new-formula` is passed, various additional checks are run that check
-#:    if a new formula is eligible for Homebrew. This should be used when creating
-#:    new formulae and implies `--strict` and `--online`.
-#:
-#:    If `--display-cop-names` is passed, the RuboCop cop name for each violation
-#:    is included in the output.
-#:
-#:    If `--display-filename` is passed, every line of output is prefixed with the
-#:    name of the file or formula being audited, to make the output easy to grep.
-#:
-#:    Specifying `--only=`<method> will run only the methods named `audit_`<method>,
-#:    while `--except=`<method> will skip the methods named `audit_`<method>.
-#:    For either option <method> should be a comma-separated list.
-#:
-#:    Specifying `--only-cops=`<cops> will check for violations of only the listed
-#:    RuboCop <cops>, while `--except-cops=`<cops> will skip checking the listed
-#:    <cops>. For either option <cops> should be a comma-separated list of cop names.
-
-# Undocumented options:
-#     `-D` activates debugging and profiling of the audit methods (not the same as `--debug`)
-
 require "formula"
 require "formula_versions"
 require "utils/curl"
@@ -53,12 +16,12 @@ module Homebrew
   def audit_args
     Homebrew::CLI::Parser.new do
       usage_banner <<~EOS
-        `audit` [<options>] <formulae>
+        `audit` [<options>] <formula>
 
-        Check <formulae> for Homebrew coding style violations. This should be run before
+        Check <formula> for Homebrew coding style violations. This should be run before
         submitting a new formula. Will exit with a non-zero status if any errors are
         found, which can be useful for implementing pre-commit hooks.
-        If no <formulae> are provided, all of them are checked.
+        If no <formula> are provided, all of them are checked.
       EOS
       switch "--strict",
         description: "Run additional style checks, including RuboCop style checks."
@@ -93,6 +56,9 @@ module Homebrew
       switch :debug
       conflicts "--only", "--except"
       conflicts "--only-cops", "--except-cops"
+
+      # Undocumented options:
+      # `-D` activates debugging and profiling of the audit methods (not the same as `--debug`)
     end
   end
 
@@ -1124,20 +1090,9 @@ module Homebrew
     end
 
     def audit_urls
-      urls = [url] + mirrors
-
-      curl_openssl_or_deps = ResourceAuditor.curl_openssl_and_deps.include?(owner.name)
-
-      if spec_name == :stable && curl_openssl_or_deps
-        problem "should not use xz tarballs" if url.end_with?(".xz")
-
-        unless urls.find { |u| u.start_with?("http://") }
-          problem "should always include at least one HTTP mirror"
-        end
-      end
-
       return unless @online
 
+      urls = [url] + mirrors
       urls.each do |url|
         next if !@strict && mirrors.include?(url)
 
@@ -1147,7 +1102,7 @@ module Homebrew
           # pull request.
           next if url =~ %r{^https://dl.bintray.com/homebrew/mirror/}
 
-          if http_content_problem = curl_check_http_content(url, require_http: curl_openssl_or_deps)
+          if http_content_problem = curl_check_http_content(url)
             problem http_content_problem
           end
         elsif strategy <= GitDownloadStrategy

@@ -15,7 +15,6 @@ module Homebrew
 
       def supported_configuration_checks
         %w[
-          check_build_from_source
           check_for_unsupported_macos
         ].freeze
       end
@@ -295,6 +294,19 @@ module Homebrew
             tl;dr: delete these files:
           EOS
         end
+      end
+
+      def check_for_bitdefender
+        if !Pathname("/Library/Bitdefender/AVP/EndpointSecurityforMac.app").exist? &&
+           !Pathname("/Library/Bitdefender/AVP/BDLDaemon").exist?
+          return
+        end
+
+        <<~EOS
+          You have installed Bitdefender. The "Traffic Scan" option interferes with
+          Homebrew's ability to download packages. See:
+            https://github.com/Homebrew/brew/issues/5558
+        EOS
       end
 
       def check_for_multiple_volumes

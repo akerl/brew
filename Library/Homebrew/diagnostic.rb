@@ -115,15 +115,6 @@ module Homebrew
         EOS
       end
 
-      def check_build_from_source
-        return unless ENV["HOMEBREW_BUILD_FROM_SOURCE"]
-
-        <<~EOS
-          You have HOMEBREW_BUILD_FROM_SOURCE set.
-          #{please_create_pull_requests}
-        EOS
-      end
-
       # Anaconda installs multiple system & brew dupes, including OpenSSL, Python,
       # sqlite, libpng, Qt, etc. Regularly breaks compile on Vim, MacVim and others.
       # Is flagged as part of the *-config script checks below, but people seem
@@ -199,8 +190,6 @@ module Homebrew
         # Static libs which are generally OK should be added to this list,
         # with a short description of the software they come with.
         white_list = [
-          "libsecurity_agent_client.a", # OS X 10.8.2 Supplemental Update
-          "libsecurity_agent_server.a", # OS X 10.8.2 Supplemental Update
           "libntfs-3g.a", # NTFS-3G
           "libntfs.a", # NTFS-3G
           "libublio.a", # NTFS-3G
@@ -581,11 +570,9 @@ module Homebrew
 
             Without a correctly configured origin, Homebrew won't update
             properly. You can solve this by adding the Homebrew remote:
-              git -C "#{coretap_path}" remote add origin #{Formatter.url("https://github.com/Homebrew/homebrew-core.git")}
+              git -C "#{coretap_path}" remote add origin #{Formatter.url(CoreTap.instance.default_remote)}
           EOS
-        elsif origin !~ %r{Homebrew/homebrew-core(\.git|/)?$}
-          return if ENV["CI"] && origin.include?("Homebrew/homebrew-test-bot")
-
+        elsif origin !~ %r{#{CoreTap.instance.full_name}(\.git|/)?$}i
           <<~EOS
             Suspicious #{CoreTap.instance} git origin remote found.
 
@@ -595,17 +582,22 @@ module Homebrew
 
             Unless you have compelling reasons, consider setting the
             origin remote to point at the main repository by running:
-              git -C "#{coretap_path}" remote set-url origin #{Formatter.url("https://github.com/Homebrew/homebrew-core.git")}
+              git -C "#{coretap_path}" remote set-url origin #{Formatter.url(CoreTap.instance.default_remote)}
           EOS
         end
+      end
 
+      def check_coretap_git_branch
         return if ENV["CI"]
+
+        coretap_path = CoreTap.instance.path
+        return if !Utils.git_available? || !(coretap_path/".git").exist?
 
         branch = coretap_path.git_branch
         return if branch.nil? || branch =~ /master/
 
         <<~EOS
-          Homebrew/homebrew-core is not on the master branch
+          #{CoreTap.instance.full_name} is not on the master branch
 
           Check out the master branch by running:
             git -C "$(brew --repo homebrew/core)" checkout master

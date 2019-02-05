@@ -5,7 +5,7 @@ require "set"
 module Homebrew
   module CLI
     class Parser
-      attr_reader :processed_options
+      attr_reader :processed_options, :hide_from_man_page
 
       def self.parse(args = ARGV, &block)
         new(&block).parse(args)
@@ -29,6 +29,7 @@ module Homebrew
         @conflicts = []
         @processed_options = []
         @desc_line_length = 43
+        @hide_from_man_page = false
         instance_eval(&block)
         post_initialize
       end
@@ -146,6 +147,25 @@ module Homebrew
                .gsub(%r{<([^\s]+?://[^\s]+?)>}) { |url| Formatter.url(url) }
                .gsub(/<(.*?)>/m, "#{Tty.underline}\\1#{Tty.reset}")
                .gsub(/\*(.*?)\*/m, "#{Tty.underline}\\1#{Tty.reset}")
+      end
+
+      def formula_options
+        ARGV.formulae.each do |f|
+          next if f.options.empty?
+          f.options.each do |o|
+            name = o.flag
+            description = "`#{f.name}`: #{o.description}"
+            if name.end_with? "="
+              flag   name, description: description
+            else
+              switch name, description: description
+            end
+          end
+        end
+      end
+
+      def hide_from_man_page!
+        @hide_from_man_page = true
       end
 
       private
