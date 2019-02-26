@@ -63,6 +63,8 @@ only do this for the specified formulae and casks.
   Show what would be removed, but do not actually remove anything.
 * `-s`:
   Scrub the cache, including downloads for even the latest versions. Note downloads for any installed formula or cask will still not be deleted. If you want to delete those too: `rm -rf "$(brew --cache)"`
+* `--prune-prefix`:
+  Only prune the symlinks and directories from the prefix and remove no other files.
 
 ### `command` *`cmd`*
 
@@ -243,6 +245,8 @@ Unless `HOMEBREW_NO_INSTALL_CLEANUP` is set, `brew cleanup` will be run for the 
   Don't delete the temporary files created during installation.
 * `--build-bottle`:
   Prepare the formula for eventual bottling during installation.
+* `--bottle-arch`:
+  Optimise bottles for the given architecture rather than the oldest architecture supported by the version of macOS the bottles are built on.
 * `--display-times`:
   Print install times for each formula at the end of the run.
 * `-i`, `--interactive`:
@@ -624,7 +628,7 @@ Display Homebrew's install path. *Default:* `/usr/local` on macOS and
 If *`formula`* is provided, display the location in the cellar where *`formula`*
 is or would be installed.
 
-### `--repository` [*`formula`*]
+### `--repository` [*`user`*`/`*`repo`*]
 
 Display where Homebrew's `.git` directory is located.
 
@@ -1036,6 +1040,12 @@ Note that environment variables must have a value set to be detected. For exampl
   * `HOMEBREW_DEVELOPER`:
     If set, Homebrew will tweak behaviour to be more relevant for Homebrew
     developers (active or budding), e.g. turning warnings into errors.
+
+  * `HOMEBREW_DISPLAY`:
+    If set, Homebrew will use this X11 display when opening a page in a browser,
+    for example with `brew home`. Primarily useful on Linux.
+
+    *Default:* the value of the user's `DISPLAY` environment variable.
 
   * `HOMEBREW_EDITOR`:
     If set, Homebrew will use this editor when editing a single formula, or
