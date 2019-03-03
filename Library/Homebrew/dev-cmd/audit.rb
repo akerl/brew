@@ -689,6 +689,7 @@ module Homebrew
         aalib 1.4rc5
         automysqlbackup 3.0-rc6
         aview 1.3.0rc1
+        bind 9.14.0-rc1
         distcc 3.2rc1
         elm-format 0.6.0-alpha
         ftgl 2.1.3-rc5
