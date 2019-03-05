@@ -1,4 +1,5 @@
 require "utils/bottles"
+require "utils/gems"
 require "formula"
 require "cask/cask_loader"
 require "set"
@@ -120,9 +121,7 @@ module CleanupRefinement
         return false
       end
 
-      unless basename.to_s.match?(/\A#{Regexp.escape(name)}\-\-#{Regexp.escape(cask.version)}\b/)
-        return true
-      end
+      return true unless basename.to_s.match?(/\A#{Regexp.escape(name)}\-\-#{Regexp.escape(cask.version)}\b/)
 
       return true if scrub && !cask.versions.include?(cask.version)
 
@@ -205,6 +204,7 @@ module Homebrew
         # avoid having to try to do a `brew install` when we've just deleted
         # the running Ruby process...
         return if periodic
+
         cleanup_portable_ruby
       else
         args.each do |arg|
@@ -253,6 +253,7 @@ module Homebrew
 
     def cleanup_logs
       return unless HOMEBREW_LOGS.directory?
+
       logs_days = if days > CLEANUP_DEFAULT_DAYS
         CLEANUP_DEFAULT_DAYS
       else
@@ -334,9 +335,7 @@ module Homebrew
     def cleanup_lockfiles(*lockfiles)
       return if dry_run?
 
-      if lockfiles.empty? && HOMEBREW_LOCKS.directory?
-        lockfiles = HOMEBREW_LOCKS.children.select(&:file?)
-      end
+      lockfiles = HOMEBREW_LOCKS.children.select(&:file?) if lockfiles.empty? && HOMEBREW_LOCKS.directory?
 
       lockfiles.each do |file|
         next unless file.readable?
@@ -368,6 +367,7 @@ module Homebrew
       portable_ruby_glob = "#{portable_ruby_path}/*.*"
       Pathname.glob(portable_ruby_glob).each do |path|
         next if !use_system_ruby && portable_ruby_version == path.basename.to_s
+
         if dry_run?
           puts "Would remove: #{path} (#{path.abv})"
         else
