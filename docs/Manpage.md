@@ -112,6 +112,8 @@ show the intersection of dependencies for *`formula`*.
   Include requirements in addition to dependencies for *`formula`*.
 * `--tree`:
   Show dependencies as a tree. When given multiple formula arguments output individual trees for every formula.
+* `--annotate`:
+  Mark any build, test, optional, or recommended dependencies as such in the output.
 * `--for-each`:
   Switch into the mode used by `deps --all`, but only list dependencies for specified formula one specified formula per line. This is used for debugging the `--installed`/`--all` display mode.
 
@@ -339,7 +341,7 @@ By default, version information is displayed in interactive shells, and
 suppressed otherwise.
 
 * `--json`:
-  Show output in JSON format for provided *`version`*. Currently the only accepted value of *`version`* is `v1`.
+  Print output in JSON format. Currently the default and only accepted value for *`version`* is `v1`. See the docs for examples of using the JSON output: <https://docs.brew.sh/Querying-Brew>
 * `--fetch-HEAD`:
   Fetch the upstream repository to detect if the HEAD installation of the formula is outdated. Otherwise, the repository's HEAD will be checked for updates when a new stable or development version has been released.
 
@@ -479,7 +481,7 @@ Display a brief summary of all installed taps if no *`tap`* are passed.
 * `--installed`:
   Display information on all installed taps.
 * `--json`:
-  Print a JSON representation of *`taps`*. Currently the only accepted value for *`version`* is `v1`. See the docs for examples of using the JSON output: <https://docs.brew.sh/Querying-Brew>
+  Print a JSON representation of *`taps`*. Currently the default and only accepted value for *`version`* is `v1`. See the docs for examples of using the JSON output: <https://docs.brew.sh/Querying-Brew>
 
 ### `tap-pin` *`tap`*
 
