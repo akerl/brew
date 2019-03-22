@@ -35,8 +35,8 @@ Perform a substring search of cask tokens and formula names for \fItext\fR\. If 
 .
 .SH "COMMANDS"
 .
-.SS "\fBanalytics\fR (\fBon\fR|\fBoff\fR) [\fBstate\fR] [\fBregenerate\-uuid\fR]"
-If \fBon\fR|\fBoff\fR is passed, turn Homebrew\'s analytics on or off respectively\.
+.SS "\fBanalytics\fR [\fBon\fR|\fBoff\fR|\fBstate\fR|\fBregenerate\-uuid\fR]"
+If \fBon\fR or \fBoff\fR is passed, turn Homebrew\'s analytics on or off respectively\.
 .
 .P
 If \fBstate\fR is passed, display anonymous user behaviour analytics state\. Read more at \fIhttps://docs\.brew\.sh/Analytics\fR\.
@@ -80,47 +80,39 @@ Include the aliases of internal commands\.
 Show Homebrew and system configuration useful for debugging\. If you file a bug report, you will likely be asked for this information if you do not provide it\.
 .
 .SS "\fBdeps\fR [\fIoptions\fR] \fIformula\fR"
-Show dependencies for \fIformula\fR\. When given multiple formula arguments, show the intersection of dependencies for \fIformula\fR\.
-.
-.TP
-\fB\-\-1\fR
-Only show dependencies one level down, instead of recursing\.
+Show dependencies for \fIformula\fR\. Additional options specific to \fIformula\fR may be appended to the command\. When given multiple formula arguments, show the intersection of dependencies for each formula\.
 .
 .TP
 \fB\-n\fR
 Show dependencies in topological order\.
 .
 .TP
+\fB\-\-1\fR
+Only show dependencies one level down, instead of recursing\.
+.
+.TP
 \fB\-\-union\fR
-Show the union of dependencies for \fIformula\fR, instead of the intersection\.
+Show the union of dependencies for multiple \fIformula\fR, instead of the intersection\.
 .
 .TP
 \fB\-\-full\-name\fR
 List dependencies by their full name\.
 .
 .TP
-\fB\-\-installed\fR
-Only list those dependencies that are currently installed\.
-.
-.TP
-\fB\-\-all\fR
-List all the dependencies for all available formulae\.
-.
-.TP
 \fB\-\-include\-build\fR
-Show \fB:build\fR type dependencies for \fIformula\fR\.
+Include \fB:build\fR dependencies for \fIformula\fR\.
 .
 .TP
 \fB\-\-include\-optional\fR
-Show \fB:optional\fR dependencies for \fIformula\fR\.
+Include \fB:optional\fR dependencies for \fIformula\fR\.
 .
 .TP
 \fB\-\-include\-test\fR
-Show \fB:test\fR dependencies for \fIformula\fR (non\-recursive)\.
+Include \fB:test\fR dependencies for \fIformula\fR (non\-recursive)\.
 .
 .TP
 \fB\-\-skip\-recommended\fR
-Skip \fB:recommended\fR type dependencies for \fIformula\fR\.
+Skip \fB:recommended\fR dependencies for \fIformula\fR\.
 .
 .TP
 \fB\-\-include\-requirements\fR
@@ -128,15 +120,23 @@ Include requirements in addition to dependencies for \fIformula\fR\.
 .
 .TP
 \fB\-\-tree\fR
-Show dependencies as a tree\. When given multiple formula arguments output individual trees for every formula\.
+Show dependencies as a tree\. When given multiple formula arguments, show individual trees for each formula\.
 .
 .TP
 \fB\-\-annotate\fR
 Mark any build, test, optional, or recommended dependencies as such in the output\.
 .
 .TP
+\fB\-\-installed\fR
+List dependencies for formulae that are currently installed\. If \fIformula\fR is specified, list only its dependencies that are currently installed\.
+.
+.TP
+\fB\-\-all\fR
+List dependencies for all available formulae\.
+.
+.TP
 \fB\-\-for\-each\fR
-Switch into the mode used by \fBdeps \-\-all\fR, but only list dependencies for specified formula one specified formula per line\. This is used for debugging the \fB\-\-installed\fR/\fB\-\-all\fR display mode\.
+Switch into the mode used by the \fB\-\-all\fR option, but only list dependencies for the specified \fIformula\fR, one formula per line\. This is used for debugging the \fB\-\-installed\fR/\fB\-\-all\fR display mode\.
 .
 .SS "\fBdesc\fR [\fIoptions\fR] (\fItext\fR|\fB/\fR\fItext\fR\fB/\fR|\fIformula\fR)"
 Display \fIformula\fR\'s name and one\-line description\. Formula descriptions are cached; the cache is created on the first search, making that search slower than subsequent ones\.
@@ -230,36 +230,39 @@ The Gist will be marked private and will not appear in listings but will be acce
 .SS "\fBhome\fR [\fIformula\fR]"
 Open \fIformula\fR\'s homepage in a browser\. If no formula is provided, open Homebrew\'s own homepage in a browser\.
 .
-.SS "\fBinfo\fR [\fIformula\fR]"
+.SS "\fBinfo\fR [\fIoptions\fR] [\fIformula\fR]"
 Display brief statistics for your Homebrew installation\.
+.
+.P
+If \fIformula\fR is specified, show summary of information about \fIformula\fR\.
 .
 .TP
 \fB\-\-analytics\fR
-Display Homebrew analytics data (provided neither \fBHOMEBREW_NO_ANALYTICS\fR or \fBHOMEBREW_NO_GITHUB_API\fR are set)\.
+Display global Homebrew analytics data or, if specified, installation and build error data for \fIformula\fR (provided neither \fBHOMEBREW_NO_ANALYTICS\fR nor \fBHOMEBREW_NO_GITHUB_API\fR are set)\.
 .
 .TP
 \fB\-\-days\fR
-The value for \fBdays\fR must be \fB30\fR, \fB90\fR or \fB365\fR\. The default is \fB30\fR\.
+How many days of global analytics data to retrieve\. The value for \fIdays\fR must be \fB30\fR, \fB90\fR or \fB365\fR\. The default is \fB30\fR\.
 .
 .TP
 \fB\-\-category\fR
-The value for \fBcategory\fR must be \fBinstall\fR, \fBinstall\-on\-request\fR, \fBbuild\-error\fR or \fBos\-version\fR\. The default is \fBinstall\fR\.
+Which type of global analytics data to retrieve\. The value for \fIcategory\fR must be \fBinstall\fR, \fBinstall\-on\-request\fR, \fBcask\-install\fR, \fBbuild\-error\fR or \fBos\-version\fR\. The default is \fBinstall\fR\.
 .
 .TP
 \fB\-\-github\fR
-Open a browser to the GitHub History page for provided \fIformula\fR\. To view formula history locally: \fBbrew log \-p\fR \fIformula\fR
+Open a browser to the GitHub source page for \fIformula\fR\. To view formula history locally: \fBbrew log \-p\fR \fIformula\fR
 .
 .TP
 \fB\-\-json\fR
 Print a JSON representation of \fIformula\fR\. Currently the default and only accepted value for \fIversion\fR is \fBv1\fR\. See the docs for examples of using the JSON output: \fIhttps://docs\.brew\.sh/Querying\-Brew\fR
 .
 .TP
-\fB\-\-all\fR
-Get information on all formulae\.
+\fB\-\-installed\fR
+Print JSON of formulae that are currently installed\.
 .
 .TP
-\fB\-\-installed\fR
-Get information on all installed formulae\.
+\fB\-\-all\fR
+Print JSON of all available formulae\.
 .
 .SS "\fBinstall\fR [\fIoptions\fR] \fIformula\fR"
 Install \fIformula\fR\.
@@ -657,10 +660,6 @@ Fetch the newest version of Homebrew and all formulae from GitHub using \fBgit\f
 \fB\-\-merge\fR
 \fBgit merge\fR is used to include updates (rather than \fBgit rebase\fR)\.
 .
-.TP
-\fB\-\-force\fR
-Always do a slower, full update check (even if unnecessary)\.
-.
 .SS "\fBupdate\-reset\fR [\fIrepository\fR]"
 Fetches and resets Homebrew and all tap repositories (or any specified \fBrepository\fR) using \fBgit\fR(1) to their latest \fBorigin/master\fR\. Note this will destroy all your uncommitted or committed changes\.
 .
@@ -752,7 +751,7 @@ Show the cache file used when building from source\.
 \fB\-\-force\-bottle\fR
 Show the cache file used when pouring a bottle\.
 .
-.SS "\fB\-\-cache\fR [\fIformula\fR]"
+.SS "\fB\-\-cellar\fR [\fIformula\fR]"
 Display Homebrew\'s Cellar path\. \fIDefault:\fR \fB$(brew \-\-prefix)/Cellar\fR, or if that directory doesn\'t exist, \fB$(brew \-\-repository)/Cellar\fR\.
 .
 .P
@@ -849,7 +848,7 @@ Append \fB_or_later\fR to the bottle tag\.
 .
 .TP
 \fB\-\-force\-core\-tap\fR
-Build a bottle even if \fIformula\fR is not in homebrew/core or any installed taps\.
+Build a bottle even if \fIformula\fR is not in \fBhomebrew/core\fR or any installed taps\.
 .
 .TP
 \fB\-\-no\-rebuild\fR
@@ -1035,7 +1034,7 @@ Run Homebrew with the Ruby profiler e\.g\. \fBbrew prof readall\fR\.
 Get a patch from a GitHub commit or pull request and apply it to Homebrew\. Optionally, publish updated bottles for the formulae changed by the patch\.
 .
 .P
-Each \fIpatch\fR may be the number of a PR in homebrew/core, the URL of a PR on GitHub, the URL of a commit on GitHub or a "https://jenkins\.brew\.sh/job/\.\.\." testing job URL\.
+Each \fIpatch\fR may be the number of a PR in \fBhomebrew/core\fR, the URL of a PR on GitHub, the URL of a commit on GitHub or a "https://jenkins\.brew\.sh/job/\.\.\." testing job URL\.
 .
 .TP
 \fB\-\-bottle\fR
@@ -1459,7 +1458,7 @@ Homebrew\'s Project Leadership Committee is Misty De Meo, Shaun Jackman, Jonatha
 Homebrew\'s Technical Steering Committee is Michka Popoff, FX Coudert, Markus Reiter, Misty De Meo and Mike McQuaid\.
 .
 .P
-Homebrew/brew\'s Linux support (and Linuxbrew) maintainers are Michka Popoff and Shaun Jackman\.
+Homebrew/brew\'s Linux maintainers are Michka Popoff and Shaun Jackman\.
 .
 .P
 Homebrew\'s other current maintainers are Claudia Pellegrino, Chongyu Zhu, Vitor Galvao, Gautham Goli, Steven Peters, William Woodruff, Igor Kapkov, Izaak Beekman, Sean Molenaar, Jan Viljanen, Jason Tedor, Eric Knibbe, Viktor Szakats, Thierry Moisan, Steven Peters and Tom Schoonjans\.
