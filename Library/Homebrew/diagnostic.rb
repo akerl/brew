@@ -350,6 +350,9 @@ module Homebrew
 
           You should change the ownership of these directories to your user.
             sudo chown -R $(whoami) #{not_writable_dirs.join(" ")}
+
+          And make sure that your user has write permission.
+            chmod u+w #{not_writable_dirs.join(" ")}
         EOS
       end
 
@@ -511,7 +514,7 @@ module Homebrew
       end
 
       def check_git_version
-        minimum_version = ENV["HOMEBREW_MINIMUM_GIT_VERSION"].freeze
+        minimum_version = ENV["HOMEBREW_MINIMUM_GIT_VERSION"]
         return unless Utils.git_available?
         return if Version.create(Utils.git_version) >= Version.create(minimum_version)
 

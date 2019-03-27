@@ -355,8 +355,8 @@ fi
 check-run-command-as-root() {
   [[ "$(id -u)" = 0 ]] || return
 
-  # Allow Docker to do everything as root (as it's normal there)
-  [[ -f /proc/1/cgroup ]] && grep docker -q /proc/1/cgroup && return
+  # Allow Azure Pipelines/Docker to do everything as root (as it's normal there)
+  [[ -f /proc/1/cgroup ]] && grep -E "azpl_job|docker" -q /proc/1/cgroup && return
 
   # Homebrew Services may need `sudo` for system-wide daemons.
   [[ "$HOMEBREW_COMMAND" = "services" ]] && return
@@ -416,10 +416,25 @@ update-preinstall() {
   [[ -z "$HOMEBREW_HELP" ]] || return
   [[ -z "$HOMEBREW_NO_AUTO_UPDATE" ]] || return
   [[ -z "$HOMEBREW_AUTO_UPDATING" ]] || return
-  [[ -z "$HOMEBREW_AUTO_UPDATE_CHECKED" ]] || return
   [[ -z "$HOMEBREW_UPDATE_PREINSTALL" ]] || return
+  [[ -z "$HOMEBREW_AUTO_UPDATE_CHECKED" ]] || return
+
+  # If we've checked for updates, we don't need to check again.
+  export HOMEBREW_AUTO_UPDATE_CHECKED="1"
+
+  if [[ "$HOMEBREW_COMMAND" = "cask" ]]
+  then
+    if [[ "$HOMEBREW_CASK_COMMAND" != "upgrade" && $HOMEBREW_ARG_COUNT -lt 3 ]]
+    then
+      return
+    fi
+  elif [[ "$HOMEBREW_COMMAND" != "upgrade" && $HOMEBREW_ARG_COUNT -lt 2 ]]
+  then
+    return
+  fi
 
   if [[ "$HOMEBREW_COMMAND" = "install" || "$HOMEBREW_COMMAND" = "upgrade" ||
+        "$HOMEBREW_COMMAND" = "bump-formula-pr" ||
         "$HOMEBREW_COMMAND" = "tap" && $HOMEBREW_ARG_COUNT -gt 1 ||
         "$HOMEBREW_CASK_COMMAND" = "install" || "$HOMEBREW_CASK_COMMAND" = "upgrade" ]]
   then
@@ -431,9 +446,6 @@ update-preinstall() {
       timer_pid=$!
     fi
 
-    # Allow auto-update migration now we have a fix in place (below in this function).
-    export HOMEBREW_ENABLE_AUTO_UPDATE_MIGRATION="1"
-
     brew update --preinstall
 
     if [[ -n "$timer_pid" ]]
@@ -444,15 +456,9 @@ update-preinstall() {
 
     unset HOMEBREW_AUTO_UPDATING
 
-    # If we've checked for updates, we don't need to check again.
-    export HOMEBREW_AUTO_UPDATE_CHECKED="1"
-
     # exec a new process to set any new environment variables.
     exec "$HOMEBREW_BREW_FILE" "$@"
   fi
-
-  # If we've checked for updates, we don't need to check again.
-  export HOMEBREW_AUTO_UPDATE_CHECKED="1"
 }
 
 if [[ -n "$HOMEBREW_BASH_COMMAND" ]]
