@@ -512,13 +512,6 @@ class CurlDownloadStrategyError < RuntimeError
   end
 end
 
-# Raised in {ScpDownloadStrategy#fetch}.
-class ScpDownloadStrategyError < RuntimeError
-  def initialize(cause)
-    super "Download failed: #{cause}"
-  end
-end
-
 # Raised by {#safe_system} in `utils.rb`.
 class ErrorDuringExecution < RuntimeError
   attr_reader :cmd
@@ -554,6 +547,10 @@ class ErrorDuringExecution < RuntimeError
     end
 
     super s
+  end
+
+  def stderr
+    [*output].select { |type,| type == :stderr }.map(&:last).join
   end
 end
 

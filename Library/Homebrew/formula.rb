@@ -32,7 +32,7 @@ require "mktemp"
 # @see Pathname
 # @see https://www.rubydoc.info/stdlib/fileutils FileUtils
 # @see https://docs.brew.sh/Formula-Cookbook Formula Cookbook
-# @see https://github.com/styleguide/ruby Ruby Style Guide
+# @see https://github.com/rubocop-hq/ruby-style-guide#the-ruby-style-guide Ruby Style Guide
 #
 # <pre>class Wget < Formula
 #   homepage "https://www.gnu.org/software/wget/"
@@ -2496,15 +2496,10 @@ class Formula
     #   version '7.1'
     # end</pre>
     def fails_with(compiler, &block)
-      odisabled "fails_with :gcc_4_0" if compiler == :gcc_4_0
-      odisabled "fails_with :gcc_4_2" if compiler == :gcc_4_2
-      odisabled "fails_with :gcc" if compiler == :gcc && !block_given?
       specs.each { |spec| spec.fails_with(compiler, &block) }
     end
 
     def needs(*standards)
-      odisabled "needs :cxx11" if standards.include?(:cxx11)
-      odisabled "needs :cxx14" if standards.include?(:cxx14)
       specs.each { |spec| spec.needs(*standards) }
     end
 
