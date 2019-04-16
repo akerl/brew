@@ -52,7 +52,7 @@ module Cask
           puts self.class.none_string
         else
           locations.map do |l|
-            add_error "Legacy install at #{l}. Run \"brew uninstall --force brew-cask\"."
+            add_error "Legacy install at #{l}. Run `brew uninstall --force brew-cask`."
             puts l
           end
         end
@@ -65,6 +65,7 @@ module Cask
 
         if path.exist? && !path.writable?
           add_error "The staging path #{user_tilde(path.to_s)} is not writable by the current user."
+          add_error "To fix, run \'sudo chown -R ${USER}:staff #{user_tilde(path.to_s)}'"
         end
 
         puts user_tilde(path.to_s)
