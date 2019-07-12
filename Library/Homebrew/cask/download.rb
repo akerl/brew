@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "fileutils"
 require "cask/cache"
 require "cask/quarantine"
@@ -33,7 +35,7 @@ module Cask
     attr_accessor :downloaded_path
 
     def clear_cache
-      downloader.clear_cache if force || cask.version.latest?
+      downloader.clear_cache if force
     end
 
     def fetch

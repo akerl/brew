@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "cask/cask_loader"
 require "cask/config"
 require "cask/dsl"
@@ -76,6 +78,13 @@ module Cask
 
     def installed?
       !versions.empty?
+    end
+
+    def install_time
+      _, time = timestamped_versions.last
+      return unless time
+
+      Time.strptime(time, Metadata::TIMESTAMP_FORMAT)
     end
 
     def installed_caskfile

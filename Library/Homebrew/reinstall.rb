@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "formula_installer"
 require "development_tools"
 require "messages"
@@ -8,6 +10,7 @@ module Homebrew
   def reinstall_formula(f, build_from_source: false)
     if f.opt_prefix.directory?
       keg = Keg.new(f.opt_prefix.resolved_path)
+      tab = Tab.for_keg(keg)
       keg_had_linked_opt = true
       keg_was_linked = keg.linked?
       backup keg
@@ -20,11 +23,16 @@ module Homebrew
 
     fi = FormulaInstaller.new(f)
     fi.options              = options
-    fi.build_bottle         = ARGV.build_bottle? || (!f.bottle_defined? && f.build.bottle?)
+    fi.build_bottle         = ARGV.build_bottle?
     fi.interactive          = ARGV.interactive?
     fi.git                  = ARGV.git?
     fi.link_keg           ||= keg_was_linked if keg_had_linked_opt
     fi.build_from_source    = true if build_from_source
+    if tab
+      fi.build_bottle          ||= tab.built_bottle?
+      fi.installed_as_dependency = tab.installed_as_dependency
+      fi.installed_on_request    = tab.installed_on_request
+    end
     fi.prelude
 
     oh1 "Reinstalling #{Formatter.identifier(f.full_name)} #{options.to_a.join " "}"
@@ -37,12 +45,26 @@ module Homebrew
     ignore_interrupts { restore_backup(keg, keg_was_linked) }
     raise
   else
-    backup_path(keg).rmtree if backup_path(keg).exist?
+    begin
+      backup_path(keg).rmtree if backup_path(keg).exist?
+    rescue Errno::EACCES, Errno::ENOTEMPTY
+      odie <<~EOS
+        Could not remove #{backup_path(keg).parent.basename} backup keg! Do so manually:
+          sudo rm -rf #{backup_path(keg)}
+      EOS
+    end
   end
 
   def backup(keg)
     keg.unlink
-    keg.rename backup_path(keg)
+    begin
+      keg.rename backup_path(keg)
+    rescue Errno::EACCES, Errno::ENOTEMPTY
+      odie <<~EOS
+        Could not rename #{keg.name} keg! Check/fix its permissions:
+          sudo chown -R $(whoami) #{keg}
+      EOS
+    end
   end
 
   def restore_backup(keg, keg_was_linked)

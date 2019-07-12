@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "hardware"
 require "software_spec"
 require "rexml/document"
@@ -121,6 +123,7 @@ class SystemConfig
         HOMEBREW_REPOSITORY:    Homebrew::DEFAULT_REPOSITORY,
         HOMEBREW_CELLAR:        Homebrew::DEFAULT_CELLAR,
         HOMEBREW_CACHE:         "#{ENV["HOME"]}/Library/Caches/Homebrew",
+        HOMEBREW_LOGS:          "#{ENV["HOME"]}/Library/Logs/Homebrew",
         HOMEBREW_TEMP:          ENV["HOMEBREW_SYSTEM_TEMP"],
         HOMEBREW_RUBY_WARNINGS: "-W0",
       }.freeze
@@ -136,6 +139,7 @@ class SystemConfig
         HOMEBREW_BREW_FILE
         HOMEBREW_COMMAND_DEPTH
         HOMEBREW_CURL
+        HOMEBREW_DISPLAY
         HOMEBREW_GIT
         HOMEBREW_GIT_CONFIG_FILE
         HOMEBREW_LIBRARY
@@ -154,18 +158,18 @@ class SystemConfig
         HOMEBREW_VERSION
       ].freeze
       f.puts "HOMEBREW_PREFIX: #{HOMEBREW_PREFIX}"
-      if defaults_hash[:HOMEBREW_REPOSITORY] != HOMEBREW_REPOSITORY.to_s
-        f.puts "HOMEBREW_REPOSITORY: #{HOMEBREW_REPOSITORY}"
+      [:HOMEBREW_CELLAR, :HOMEBREW_CACHE, :HOMEBREW_LOGS, :HOMEBREW_REPOSITORY,
+       :HOMEBREW_TEMP].each do |key|
+        value = Object.const_get(key)
+        f.puts "#{key}: #{value}" if defaults_hash[key] != value.to_s
       end
-      f.puts "HOMEBREW_CELLAR: #{HOMEBREW_CELLAR}" if defaults_hash[:HOMEBREW_CELLAR] != HOMEBREW_CELLAR.to_s
-      f.puts "HOMEBREW_CACHE: #{HOMEBREW_CACHE}" if defaults_hash[:HOMEBREW_CACHE] != HOMEBREW_CACHE.to_s
-      f.puts "HOMEBREW_TEMP: #{HOMEBREW_TEMP}" if defaults_hash[:HOMEBREW_TEMP] != HOMEBREW_TEMP.to_s
       if defaults_hash[:HOMEBREW_RUBY_WARNINGS] != ENV["HOMEBREW_RUBY_WARNINGS"].to_s
         f.puts "HOMEBREW_RUBY_WARNINGS: #{ENV["HOMEBREW_RUBY_WARNINGS"]}"
       end
       unless ENV["HOMEBREW_ENV"]
         ENV.sort.each do |key, value|
           next unless key.start_with?("HOMEBREW_")
+          next if key.start_with?("HOMEBREW_BUNDLE_")
           next if boring_keys.include?(key)
           next if defaults_hash[key.to_sym]
 

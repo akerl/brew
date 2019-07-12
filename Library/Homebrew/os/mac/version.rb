@@ -1,9 +1,12 @@
+# frozen_string_literal: true
+
 require "version"
 
 module OS
   module Mac
     class Version < ::Version
       SYMBOLS = {
+        catalina:    "10.15",
         mojave:      "10.14",
         high_sierra: "10.13",
         sierra:      "10.12",

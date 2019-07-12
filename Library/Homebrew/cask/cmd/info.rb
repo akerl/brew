@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "json"
 require "cask/installer"
 
@@ -15,7 +17,8 @@ module Cask
         if json == "v1"
           puts JSON.generate(casks.map(&:to_h))
         else
-          casks.each do |cask|
+          casks.each_with_index do |cask, i|
+            puts unless i.zero?
             odebug "Getting info for Cask #{cask}"
             self.class.info(cask)
           end
@@ -56,7 +59,7 @@ module Cask
       end
 
       def self.installation_info(cask)
-        install_info = ""
+        install_info = +""
         if cask.installed?
           cask.versions.each do |version|
             versioned_staged_path = cask.caskroom_path.join(version)
@@ -69,7 +72,7 @@ module Cask
                               end,
                             ).concat(")\n")
           end
-          install_info
+          install_info.freeze
         else
           "Not installed\n"
         end
@@ -104,14 +107,14 @@ module Cask
       end
 
       def self.artifact_info(cask)
-        artifact_output = ohai_title("Artifacts")
+        artifact_output = ohai_title("Artifacts").dup
         cask.artifacts.each do |artifact|
           next unless artifact.respond_to?(:install_phase)
           next unless DSL::ORDINARY_ARTIFACT_CLASSES.include?(artifact.class)
 
           artifact_output << "\n" << artifact.to_s
         end
-        artifact_output
+        artifact_output.freeze
       end
     end
   end

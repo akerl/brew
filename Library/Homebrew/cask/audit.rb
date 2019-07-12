@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "cask/checkable"
 require "cask/download"
 require "digest"
@@ -7,11 +9,16 @@ require "utils/git"
 module Cask
   class Audit
     include Checkable
+    extend Predicable
 
     attr_reader :cask, :commit_range, :download
 
-    def initialize(cask, download: false, check_token_conflicts: false, commit_range: nil, command: SystemCommand)
+    attr_predicate :check_appcast?
+
+    def initialize(cask, check_appcast: false, download: false, check_token_conflicts: false,
+                   commit_range: nil, command: SystemCommand)
       @cask = cask
+      @check_appcast = check_appcast
       @download = download
       @commit_range = commit_range
       @check_token_conflicts = check_token_conflicts
@@ -38,6 +45,7 @@ module Cask
       check_latest_with_appcast
       check_latest_with_auto_updates
       check_stanza_requires_uninstall
+      check_appcast_contains_version
       self
     rescue => e
       odebug "#{e.message}\n#{e.backtrace.join("\n")}"
@@ -288,6 +296,28 @@ module Cask
       Verify.all(cask, downloaded_path)
     rescue => e
       add_error "download not possible: #{e.message}"
+    end
+
+    def check_appcast_contains_version
+      return unless check_appcast?
+      return if cask.appcast.to_s.empty?
+      return if cask.appcast.configuration == :no_check
+
+      appcast_stanza = cask.appcast.to_s
+      appcast_contents, = curl_output("--compressed", "--user-agent", HOMEBREW_USER_AGENT_FAKE_SAFARI, "--location",
+                                      "--globoff", "--max-time", "5", appcast_stanza)
+      version_stanza = cask.version.to_s
+      if cask.appcast.configuration.blank?
+        adjusted_version_stanza = version_stanza.split(",")[0].split("-")[0].split("_")[0]
+      else
+        adjusted_version_stanza = cask.appcast.configuration
+      end
+      return if appcast_contents.include? adjusted_version_stanza
+
+      add_warning "appcast at URL '#{appcast_stanza}' does not contain"\
+                  " the version number: '#{adjusted_version_stanza}'"
+    rescue
+      add_error "appcast at URL '#{appcast_stanza}' offline or looping"
     end
 
     def check_https_availability

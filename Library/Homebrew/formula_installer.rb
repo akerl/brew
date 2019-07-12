@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "cxxstdlib"
 require "formula"
 require "keg"
@@ -194,8 +196,8 @@ class FormulaInstaller
     return if pinned_unsatisfied_deps.empty?
 
     raise CannotInstallFormulaError,
-      "You must `brew unpin #{pinned_unsatisfied_deps * " "}` as installing " \
-      "#{formula.full_name} requires the latest version of pinned dependencies"
+          "You must `brew unpin #{pinned_unsatisfied_deps * " "}` as installing " \
+          "#{formula.full_name} requires the latest version of pinned dependencies"
   end
 
   def build_bottle_preinstall
@@ -287,7 +289,14 @@ class FormulaInstaller
       rescue Exception => e # rubocop:disable Lint/RescueException
         # any exceptions must leave us with nothing installed
         ignore_interrupts do
-          formula.prefix.rmtree if formula.prefix.directory?
+          begin
+            formula.prefix.rmtree if formula.prefix.directory?
+          rescue Errno::EACCES, Errno::ENOTEMPTY
+            odie <<~EOS
+              Could not remove #{formula.prefix.basename} keg! Do so manually:
+                sudo rm -rf #{formula.prefix}
+            EOS
+          end
           formula.rack.rmdir_if_possible
         end
         raise if ARGV.homebrew_developer? ||
@@ -664,11 +673,11 @@ class FormulaInstaller
   end
 
   def summary
-    s = ""
+    s = +""
     s << "#{Emoji.install_badge}  " if Emoji.enabled?
     s << "#{formula.prefix.resolved_path}: #{formula.prefix.abv}"
     s << ", built in #{pretty_duration build_time}" if build_time
-    s
+    s.freeze
   end
 
   def build_time
@@ -939,8 +948,9 @@ class FormulaInstaller
       downloader = LocalBottleDownloadStrategy.new(bottle_path)
     else
       downloader = formula.bottle
-      downloader.verify_download_integrity(downloader.fetch)
+      downloader.fetch
     end
+
     HOMEBREW_CELLAR.cd do
       downloader.stage
     end

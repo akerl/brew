@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "formula"
 require "formula_versions"
 require "utils/curl"
@@ -8,7 +10,7 @@ require "style"
 require "date"
 require "missing_formula"
 require "digest"
-require "cli_parser"
+require "cli/parser"
 
 module Homebrew
   module_function
@@ -24,34 +26,34 @@ module Homebrew
         If no <formula> are provided, all of them are checked.
       EOS
       switch "--strict",
-        description: "Run additional style checks, including RuboCop style checks."
+             description: "Run additional style checks, including RuboCop style checks."
       switch "--online",
-        description: "Run additional slower style checks that require a network connection."
+             description: "Run additional slower style checks that require a network connection."
       switch "--new-formula",
-        description: "Run various additional style checks to determine if a new formula is eligible "\
-                     "for Homebrew. This should be used when creating new formula and implies "\
-                     "`--strict` and `--online`."
+             description: "Run various additional style checks to determine if a new formula is eligible "\
+                          "for Homebrew. This should be used when creating new formula and implies "\
+                          "`--strict` and `--online`."
       switch "--fix",
-        description: "Fix style violations automatically using RuboCop's auto-correct feature."
+             description: "Fix style violations automatically using RuboCop's auto-correct feature."
       switch "--display-cop-names",
-        description: "Include the RuboCop cop name for each violation in the output."
+             description: "Include the RuboCop cop name for each violation in the output."
       switch "--display-filename",
-        description: "Prefix every line of output with name of the file or formula being audited, to "\
-                     "make output easy to grep."
+             description: "Prefix every line of output with name of the file or formula being audited, to "\
+                          "make output easy to grep."
       switch "-D", "--audit-debug",
-        description: "Enable debugging and profiling of audit methods."
+             description: "Enable debugging and profiling of audit methods."
       comma_array "--only",
-        description: "Specify a comma-separated <method> list to only run the methods named "\
-                     "`audit_`<method>."
+                  description: "Specify a comma-separated <method> list to only run the methods named "\
+                               "`audit_`<method>."
       comma_array "--except",
-        description: "Specify a comma-separated <method> list to skip running the methods named "\
-                     "`audit_`<method>."
+                  description: "Specify a comma-separated <method> list to skip running the methods named "\
+                               "`audit_`<method>."
       comma_array "--only-cops",
-        description: "Specify a comma-separated <cops> list to check for violations of only the listed "\
-                     "RuboCop cops."
+                  description: "Specify a comma-separated <cops> list to check for violations of only the listed "\
+                               "RuboCop cops."
       comma_array "--except-cops",
-        description: "Specify a comma-separated <cops> list to skip checking for violations of the listed "\
-                     "RuboCop cops."
+                  description: "Specify a comma-separated <cops> list to skip checking for violations of the listed "\
+                               "RuboCop cops."
       switch :verbose
       switch :debug
       conflicts "--only", "--except"
@@ -389,7 +391,7 @@ module Homebrew
           if @new_formula &&
              dep_f.keg_only_reason&.reason == :provided_by_macos &&
              dep_f.keg_only_reason.valid? &&
-             !["apr", "apr-util", "openblas", "openssl"].include?(dep.name)
+             !%w[apr apr-util openblas openssl].include?(dep.name)
             new_formula_problem(
               "Dependency '#{dep.name}' may be unnecessary as it is provided " \
               "by macOS; try to build this formula without it.",
@@ -530,9 +532,9 @@ module Homebrew
       return unless DevelopmentTools.curl_handles_most_https_certificates?
 
       if http_content_problem = curl_check_http_content(homepage,
-                                  user_agents:   [:browser, :default],
-                                  check_content: true,
-                                  strict:        @strict)
+                                                        user_agents:   [:browser, :default],
+                                                        check_content: true,
+                                                        strict:        @strict)
         problem http_content_problem
       end
     end
@@ -677,14 +679,12 @@ module Homebrew
         hidapi 0.8.0-rc1
         htop 3.0.0beta
         libcaca 0.99b19
-        nethack4 4.3.0-beta2
         premake 4.4-beta5
         pwnat 0.3-beta
         recode 3.7-beta2
         speexdsp 1.2rc3
         sqoop 1.4.6
         tcptraceroute 1.5beta7
-        testssl 2.8rc3
         tiny-fugue 5.0b8
         vbindiff 3.0_beta4
       ].each_slice(2).to_a.map do |formula, version|
@@ -692,32 +692,40 @@ module Homebrew
       end
 
       gnome_devel_whitelist = %w[
-        gtk-doc 1.25
         libart 2.3.21
         pygtkglext 1.1.0
-        libepoxy 1.5.0
-        gtk-mac-integration 2.1.2
       ].each_slice(2).to_a.map do |formula, version|
         [formula, version.split(".")[0..1].join(".")]
       end
 
       stable = formula.stable
-      case stable&.url
+      return unless stable
+      return unless stable.url
+
+      stable_version_string = stable.version.to_s
+      stable_url_version = Version.parse(stable.url)
+      _, stable_url_minor_version, = stable_url_version.to_s
+                                                       .split(".", 3)
+                                                       .map(&:to_i)
+
+      case stable.url
       when /[\d\._-](alpha|beta|rc\d)/
         matched = Regexp.last_match(1)
-        version_prefix = stable.version.to_s.sub(/\d+$/, "")
+        version_prefix = stable_version_string.sub(/\d+$/, "")
         return if unstable_whitelist.include?([formula.name, version_prefix])
 
         problem "Stable version URLs should not contain #{matched}"
       when %r{download\.gnome\.org/sources}, %r{ftp\.gnome\.org/pub/GNOME/sources}i
-        version_prefix = stable.version.to_s.split(".")[0..1].join(".")
+        version_prefix = stable_version_string.split(".")[0..1].join(".")
         return if gnome_devel_whitelist.include?([formula.name, version_prefix])
+        return if stable_url_version < Version.create("1.0")
+        return if stable_url_minor_version.even?
 
-        version = Version.parse(stable.url)
-        if version >= Version.create("1.0")
-          _, minor_version, = version.to_s.split(".", 3).map(&:to_i)
-          problem "#{stable.version} is a development release" if minor_version.odd?
-        end
+        problem "#{stable.version} is a development release"
+      when %r{isc.org/isc/bind\d*/}i
+        return if stable_url_minor_version.even?
+
+        problem "#{stable.version} is a development release"
       end
     end
 

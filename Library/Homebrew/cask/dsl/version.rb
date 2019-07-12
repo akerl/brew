@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Cask
   class DSL
     class Version < ::String
@@ -5,7 +7,6 @@ module Cask
         "." => :dots,
         "-" => :hyphens,
         "_" => :underscores,
-        "/" => :slashes,
       }.freeze
 
       DIVIDER_REGEX = /(#{DIVIDERS.keys.map { |v| Regexp.quote(v) }.join('|')})/.freeze

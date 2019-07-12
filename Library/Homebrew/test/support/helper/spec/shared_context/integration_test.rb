@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "open3"
 
 require "formula_installer"
@@ -89,6 +91,7 @@ RSpec.shared_context "integration test" do
         "-I", $LOAD_PATH.join(File::PATH_SEPARATOR)
       ]
       if ENV["HOMEBREW_TESTS_COVERAGE"]
+        require "rubygems"
         simplecov_spec = Gem.loaded_specs["simplecov"]
         specs = [simplecov_spec]
         simplecov_spec.runtime_dependencies.each do |dep|
@@ -218,7 +221,7 @@ RSpec.shared_context "integration test" do
       system "git", "init"
       system "git", "add", "--all"
       system "git", "commit", "-m",
-        "#{old_name.capitalize} has not yet been renamed"
+             "#{old_name.capitalize} has not yet been renamed"
 
       brew "install", old_name
 
@@ -227,7 +230,7 @@ RSpec.shared_context "integration test" do
 
       system "git", "add", "--all"
       system "git", "commit", "-m",
-        "#{old_name.capitalize} has been renamed to #{new_name.capitalize}"
+             "#{old_name.capitalize} has been renamed to #{new_name.capitalize}"
     end
   end
 

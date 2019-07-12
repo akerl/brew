@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "emoji"
 require "utils/analytics"
 require "utils/curl"
@@ -105,14 +107,15 @@ def odeprecated(method, replacement = nil, disable: false, disable_on: nil, call
     next unless match = line.match(HOMEBREW_TAP_PATH_REGEX)
 
     tap = Tap.fetch(match[:user], match[:repo])
-    tap_message = "\nPlease report this to the #{tap} tap"
+    tap_message = +"\nPlease report this to the #{tap} tap"
     tap_message += ", or even better, submit a PR to fix it" if replacement
     tap_message << ":\n  #{line.sub(/^(.*\:\d+)\:.*$/, '\1')}\n\n"
     break
   end
 
-  message = "Calling #{method} is #{verb}! #{replacement_message}"
+  message = +"Calling #{method} is #{verb}! #{replacement_message}"
   message << tap_message if tap_message
+  message.freeze
 
   if ARGV.homebrew_developer? || disable || Homebrew.raise_deprecation_exceptions?
     exception = MethodDeprecatedError.new(message)
@@ -150,18 +153,19 @@ end
 
 def pretty_duration(s)
   s = s.to_i
-  res = ""
+  res = +""
 
   if s > 59
     m = s / 60
     s %= 60
-    res = "#{m} #{"minute".pluralize(m)}"
-    return res if s.zero?
+    res = +"#{m} #{"minute".pluralize(m)}"
+    return res.freeze if s.zero?
 
     res << " "
   end
 
   res << "#{s} #{"second".pluralize(s)}"
+  res.freeze
 end
 
 def interactive_shell(f = nil)

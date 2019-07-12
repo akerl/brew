@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 require "extend/ENV"
 require "formula"
-require "cli_parser"
+require "cli/parser"
 
 module Homebrew
   module_function
@@ -17,7 +19,7 @@ module Homebrew
         which otherwise build systems would not find.
       EOS
       flag "--env=",
-        description: "Use the standard `PATH` instead of superenv's, when <std> is passed"
+           description: "Use the standard `PATH` instead of superenv's, when <std> is passed"
       switch :verbose
       switch :debug
     end

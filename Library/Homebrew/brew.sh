@@ -4,6 +4,9 @@ then
   export LC_ALL="en_US.UTF-8"
 fi
 
+# USER isn't always set so provide a fall back for `brew` and subprocesses.
+export USER=${USER:-`id -un`}
+
 # Where we store built products; a Cellar in HOMEBREW_PREFIX (often /usr/local
 # for bottles) unless there's already a Cellar in HOMEBREW_REPOSITORY.
 if [[ -d "$HOMEBREW_REPOSITORY/Cellar" ]]
@@ -127,6 +130,17 @@ then
   HOMEBREW_CACHE="${HOMEBREW_CACHE:-${HOME}/Library/Caches/Homebrew}"
   HOMEBREW_LOGS="${HOMEBREW_LOGS:-${HOME}/Library/Logs/Homebrew}"
   HOMEBREW_SYSTEM_TEMP="/private/tmp"
+
+  # Set a variable when the macOS system Ruby is new enough to avoid spawning
+  # a Ruby process unnecessarily.
+  if [[ "$HOMEBREW_MACOS_VERSION_NUMERIC" -lt "101303" ]]
+  then
+    unset HOMEBREW_MACOS_SYSTEM_RUBY_NEW_ENOUGH
+  else
+    # Used in ruby.sh.
+    # shellcheck disable=SC2034
+    HOMEBREW_MACOS_SYSTEM_RUBY_NEW_ENOUGH="1"
+  fi
 else
   HOMEBREW_PROCESSOR="$(uname -m)"
   HOMEBREW_PRODUCT="${HOMEBREW_SYSTEM}brew"
@@ -157,6 +171,8 @@ else
   HOMEBREW_CACHE="${HOMEBREW_CACHE:-${CACHE_HOME}/Homebrew}"
   HOMEBREW_LOGS="${HOMEBREW_LOGS:-${CACHE_HOME}/Homebrew/Logs}"
   HOMEBREW_SYSTEM_TEMP="/tmp"
+
+  unset HOMEBREW_MACOS_SYSTEM_RUBY_NEW_ENOUGH
 fi
 
 if [[ -n "$HOMEBREW_MACOS" || -n "$HOMEBREW_FORCE_HOMEBREW_ON_LINUX" ]]
@@ -222,6 +238,7 @@ export HOMEBREW_MACOS_VERSION
 export HOMEBREW_MACOS_VERSION_NUMERIC
 export HOMEBREW_USER_AGENT
 export HOMEBREW_USER_AGENT_CURL
+export HOMEBREW_BOTTLE_DEFAULT_DOMAIN
 
 if [[ -n "$HOMEBREW_MACOS" && -x "/usr/bin/xcode-select" ]]
 then
@@ -327,6 +344,12 @@ then
 
   # Don't allow non-developers to customise Ruby warnings.
   unset HOMEBREW_RUBY_WARNINGS
+
+  # Disable Ruby options we don't need. RubyGems provides a decent speedup.
+  RUBY_DISABLE_OPTIONS="--disable=gems,did_you_mean,rubyopt"
+else
+  # Don't disable did_you_mean for developers as it's useful.
+  RUBY_DISABLE_OPTIONS="--disable=gems,rubyopt"
 fi
 
 if [[ -z "$HOMEBREW_RUBY_WARNINGS" ]]
@@ -355,8 +378,8 @@ fi
 check-run-command-as-root() {
   [[ "$(id -u)" = 0 ]] || return
 
-  # Allow Azure Pipelines/Docker to do everything as root (as it's normal there)
-  [[ -f /proc/1/cgroup ]] && grep -E "azpl_job|docker" -q /proc/1/cgroup && return
+  # Allow Azure Pipelines/Docker/Kubernetes to do everything as root (as it's normal there)
+  [[ -f /proc/1/cgroup ]] && grep -E "azpl_job|docker|kubepods" -q /proc/1/cgroup && return
 
   # Homebrew Services may need `sudo` for system-wide daemons.
   [[ "$HOMEBREW_COMMAND" = "services" ]] && return
@@ -480,5 +503,5 @@ else
 
   # Unshift command back into argument list (unless argument list was empty).
   [[ "$HOMEBREW_ARG_COUNT" -gt 0 ]] && set -- "$HOMEBREW_COMMAND" "$@"
-  { update-preinstall "$@"; exec "$HOMEBREW_RUBY_PATH" $HOMEBREW_RUBY_WARNINGS "$HOMEBREW_LIBRARY/Homebrew/brew.rb" "$@"; }
+  { update-preinstall "$@"; exec "$HOMEBREW_RUBY_PATH" $HOMEBREW_RUBY_WARNINGS "$RUBY_DISABLE_OPTIONS" "$HOMEBREW_LIBRARY/Homebrew/brew.rb" "$@"; }
 fi

@@ -1,4 +1,6 @@
-require "cli_parser"
+# frozen_string_literal: true
+
+require "cli/parser"
 
 module Homebrew
   module_function
@@ -45,7 +47,6 @@ module Homebrew
       downloader = f.downloader
 
       downloader.fetch
-      f.verify_download_integrity(downloader.cached_location)
 
       filename = downloader.basename
 

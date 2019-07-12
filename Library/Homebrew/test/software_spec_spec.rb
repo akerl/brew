@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "software_spec"
 
 describe SoftwareSpec do
@@ -127,6 +129,30 @@ describe SoftwareSpec do
     it "allows specifying recommended dependencies" do
       subject.depends_on "bar" => :recommended
       expect(subject).to have_defined_option("without-bar")
+    end
+  end
+
+  describe "#uses_from_macos" do
+    it "allows specifying dependencies", :needs_linux do
+      subject.uses_from_macos("foo")
+
+      expect(subject.deps.first.name).to eq("foo")
+    end
+
+    it "works with tags", :needs_linux do
+      subject.uses_from_macos("foo" => :head, :after => :mojave)
+
+      expect(subject.deps.first.name).to eq("foo")
+      expect(subject.deps.first.tags).to include(:head)
+    end
+
+    it "ignores OS version specifications", :needs_linux do
+      subject.uses_from_macos("foo", after: :mojave)
+      subject.uses_from_macos("bar" => :head, :after => :mojave)
+
+      expect(subject.deps.first.name).to eq("foo")
+      expect(subject.deps.last.name).to eq("bar")
+      expect(subject.deps.last.tags).to include(:head)
     end
   end
 

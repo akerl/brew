@@ -739,6 +739,16 @@ formula already uses.
 * `--revision`:
   Specify the new git commit *`revision`* corresponding to a specified *`tag`*.
 
+### `bump-revision` [*`options`*] [*`formula`*]
+
+Create a commit to increment the revision of the formula. If no revision is
+ present, "revision 1" will be added.
+
+* `-n`, `--dry-run`:
+  Print what would be done rather than doing it.
+* `--message`:
+  Append the provided *`message`* to the default commit message.
+
 ### `create` [*`options`*] *`URL`*
 
 Generate a formula for the downloadable file at *`URL`* and open it in the editor.
@@ -992,6 +1002,9 @@ Note that environment variables must have a value set to be detected. For exampl
 `export HOMEBREW_NO_INSECURE_REDIRECT=1` rather than just
 `export HOMEBREW_NO_INSECURE_REDIRECT`.
 
+  * `HOMEBREW_ARCH`:
+    Linux only: If set, Homebrew will pass the set value to type name to the compiler's `-march` option instead of using the default (`-march=native`).
+
   * `HOMEBREW_ARTIFACT_DOMAIN`:
     If set, instructs Homebrew to prefix all download URLs, including those for bottles,
     with this variable. For example, `HOMEBREW_ARTIFACT_DOMAIN=http://localhost:8080`
@@ -1031,6 +1044,9 @@ Note that environment variables must have a value set to be detected. For exampl
 
   * `HOMEBREW_CURL_VERBOSE`:
     If set, Homebrew will pass `--verbose` when invoking `curl`(1).
+
+  * `HOMEBREW_CURL_RETRIES`:
+    If set, Homebrew will pass the given retry count to `--retry` when invoking `curl`(1).
 
   * `HOMEBREW_DEBUG`:
     If set, any commands that can emit debugging information will do so.
@@ -1197,9 +1213,9 @@ Homebrew's Project Leadership Committee is Misty De Meo, Shaun Jackman, Jonathan
 
 Homebrew's Technical Steering Committee is Michka Popoff, FX Coudert, Markus Reiter, Misty De Meo and Mike McQuaid.
 
-Homebrew/brew's Linux maintainers are Michka Popoff and Shaun Jackman.
+Homebrew/brew's Linux maintainers are Michka Popoff, Shaun Jackman and Issy Long.
 
-Homebrew's other current maintainers are Claudia Pellegrino, Chongyu Zhu, Vitor Galvao, Gautham Goli, Steven Peters, William Woodruff, Igor Kapkov, Izaak Beekman, Sean Molenaar, Jan Viljanen, Jason Tedor, Eric Knibbe, Viktor Szakats, Thierry Moisan, Steven Peters and Tom Schoonjans.
+Homebrew's other current maintainers are Claudia Pellegrino, Chongyu Zhu, Vitor Galvao, Gautham Goli, Steven Peters, William Woodruff, Igor Kapkov, Izaak Beekman, Sean Molenaar, Jan Viljanen, Jason Tedor, Eric Knibbe, Viktor Szakats, Thierry Moisan, Steven Peters, Tom Schoonjans and Issy Long.
 
 Former maintainers with significant contributions include JCount, commitay, Dominyk Tiller, Tim Smith, Baptiste Fontaine, Xu Cheng, Martin Afanasjew, Brett Koonce, Charlie Sharpsteen, Jack Nagel, Adam Vandenberg, Andrew Janke, Alex Dunn, neutric, Tomasz Pajor, Uladzislau Shablinski, Alyssa Ross, ilovezfs and Homebrew's creator: Max Howell.
 

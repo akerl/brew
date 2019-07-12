@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "keg"
 require "language/python"
 require "formula"
@@ -69,7 +71,8 @@ module Homebrew
       end
 
       def inject_file_list(list, string)
-        list.reduce(string) { |acc, elem| acc << "  #{elem}\n" }
+        list.reduce(string.dup) { |acc, elem| acc << "  #{elem}\n" }
+            .freeze
       end
       ############# END HELPERS
 
@@ -389,9 +392,6 @@ module Homebrew
                   /usr/bin occurs before #{HOMEBREW_PREFIX}/bin
                   This means that system-provided programs will be used instead of those
                   provided by Homebrew. The following tools exist at both paths:
-                EOS
-
-                message += <<~EOS
 
                   Consider setting your PATH so that #{HOMEBREW_PREFIX}/bin
                   occurs before /usr/bin. Here is a one-liner:

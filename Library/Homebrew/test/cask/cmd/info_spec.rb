@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "shared_examples/requires_cask_token"
 require_relative "shared_examples/invalid_option"
 
@@ -46,6 +48,7 @@ describe Cask::Cmd::Info, :cask do
         None
         ==> Artifacts
         Caffeine.app (App)
+
         local-transmission: 2.61
         https://brew.sh
         Not installed
@@ -136,7 +139,7 @@ describe Cask::Cmd::Info, :cask do
     EOS
   end
 
-  it "can run be run with a url twice" do
+  it "can run be run with a url twice", :needs_network do
     expect {
       described_class.run("https://raw.githubusercontent.com/Homebrew/homebrew-cask" \
                           "/d0b2c58652ae5eff20a7a4ac93292a08b250912b/Casks/docker.rb")

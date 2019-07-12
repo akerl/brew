@@ -1,4 +1,6 @@
-require "cli_parser"
+# frozen_string_literal: true
+
+require "cli/parser"
 
 module Homebrew
   module_function
@@ -12,7 +14,7 @@ module Homebrew
         `brew ruby -e "puts :gcc.f.deps"` or `brew ruby script.rb`
       EOS
       switch "-e",
-        description: "Execute the provided string argument as a script."
+             description: "Execute the provided string argument as a script."
       switch :verbose
       switch :debug
     end

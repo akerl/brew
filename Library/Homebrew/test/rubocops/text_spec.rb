@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rubocops/text"
 
 describe RuboCop::Cop::FormulaAudit::Text do
@@ -26,6 +28,28 @@ describe RuboCop::Cop::FormulaAudit::Text do
           depends_on "openssl"
           depends_on "libressl"
           ^^^^^^^^^^^^^^^^^^^^^ Formulae should not depend on both OpenSSL and LibreSSL (even optionally).
+        end
+      RUBY
+    end
+
+    it "when veclibfort is used instead of OpenBLAS" do
+      expect_offense(<<~RUBY, "/homebrew-core/")
+        class Foo < Formula
+          url "https://brew.sh/foo-1.0.tgz"
+          homepage "https://brew.sh"
+          depends_on "veclibfort"
+          ^^^^^^^^^^^^^^^^^^^^^^^ Formulae should use OpenBLAS as the default serial linear algebra library.
+        end
+      RUBY
+    end
+
+    it "when lapack is used instead of OpenBLAS" do
+      expect_offense(<<~RUBY, "/homebrew-core/")
+        class Foo < Formula
+          url "https://brew.sh/foo-1.0.tgz"
+          homepage "https://brew.sh"
+          depends_on "lapack"
+          ^^^^^^^^^^^^^^^^^^^ Formulae should use OpenBLAS as the default serial linear algebra library.
         end
       RUBY
     end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rubocops/extend/formula"
 
 module RuboCop
@@ -12,6 +14,10 @@ module RuboCop
 
           if depends_on?("openssl") && depends_on?("libressl")
             problem "Formulae should not depend on both OpenSSL and LibreSSL (even optionally)."
+          end
+
+          if formula_tap == "homebrew-core" && (depends_on?("veclibfort") || depends_on?("lapack"))
+            problem "Formulae should use OpenBLAS as the default serial linear algebra library."
           end
 
           if method_called_ever?(body_node, :virtualenv_create) ||

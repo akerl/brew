@@ -1,11 +1,14 @@
+# frozen_string_literal: true
+
 module Cask
   class DSL
     class Appcast
-      attr_reader :uri, :parameters
+      attr_reader :uri, :parameters, :configuration
 
       def initialize(uri, **parameters)
         @uri        = URI(uri)
         @parameters = parameters
+        @configuration = parameters[:configuration] if parameters.key?(:configuration)
       end
 
       def to_yaml
