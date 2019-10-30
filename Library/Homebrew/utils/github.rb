@@ -163,7 +163,8 @@ module GitHub
     # This is a no-op if the user is opting out of using the GitHub API.
     return block_given? ? yield({}) : {} if ENV["HOMEBREW_NO_GITHUB_API"]
 
-    args = ["--header", "application/vnd.github.v3+json", "--write-out", "\n%{http_code}"]
+    args = ["--header", "Accept: application/vnd.github.v3+json", "--write-out", "\n%\{http_code}"]
+    args += ["--header", "Accept: application/vnd.github.antiope-preview+json"]
 
     token, username = api_credentials
     case api_credentials_type
@@ -195,7 +196,7 @@ module GitHub
 
       args += ["--dump-header", headers_tmpfile.path]
 
-      output, errors, status = curl_output("--location", url.to_s, *args)
+      output, errors, status = curl_output("--location", url.to_s, *args, secrets: [token])
       output, _, http_code = output.rpartition("\n")
       output, _, http_code = output.rpartition("\n") if http_code == "000"
       headers = headers_tmpfile.read
@@ -259,6 +260,15 @@ module GitHub
     else
       raise Error, message
     end
+  end
+
+  def check_runs(repo: nil, commit: nil, pr: nil)
+    if pr
+      repo = pr.fetch("base").fetch("repo").fetch("full_name")
+      commit = pr.fetch("head").fetch("sha")
+    end
+
+    open_api(url_to("repos", repo, "commits", commit, "check-runs"))
   end
 
   def search_issues(query, **qualifiers)

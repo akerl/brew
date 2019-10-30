@@ -16,7 +16,7 @@ BOTTLE_ERB = <<-EOS.freeze
     <% if !root_url.start_with?(HOMEBREW_BOTTLE_DEFAULT_DOMAIN) %>
     root_url "<%= root_url %>"
     <% end %>
-    <% if ![Homebrew::DEFAULT_PREFIX, "/usr/local"].include?(prefix) %>
+    <% if ![HOMEBREW_DEFAULT_PREFIX, LINUXBREW_DEFAULT_PREFIX].include?(prefix) %>
     prefix "<%= prefix %>"
     <% end %>
     <% if cellar.is_a? Symbol %>
@@ -64,15 +64,15 @@ module Homebrew
              description: "If the formula specifies a rebuild version, attempt to preserve its value in the "\
                           "generated DSL."
       switch "--json",
-             description: "Write bottle information to a JSON file, which can be used as the argument for "\
+             description: "Write bottle information to a JSON file, which can be used as the value for "\
                           "`--merge`."
       switch "--merge",
              description: "Generate an updated bottle block for a formula and optionally merge it into the "\
-                          "formula file. Instead of a formula name, requires a JSON file generated with "\
+                          "formula file. Instead of a formula name, requires the path to a JSON file generated with "\
                           "`brew bottle --json` <formula>."
       switch "--write",
              depends_on:  "--merge",
-             description: "Write the changes to the formula file. A new commit will be generated unless "\
+             description: "Write changes to the formula file. A new commit will be generated unless "\
                           "`--no-commit` is passed."
       switch "--no-commit",
              depends_on:  "--write",
@@ -91,7 +91,7 @@ module Homebrew
 
     return merge if args.merge?
 
-    ensure_relocation_formulae_installed!
+    ensure_relocation_formulae_installed! unless args.skip_relocation?
     ARGV.resolved_formulae.each do |f|
       bottle_formula f
     end
@@ -530,14 +530,13 @@ module Homebrew
 
         unless args.no_commit?
           if ENV["HOMEBREW_GIT_NAME"]
-            ENV["GIT_AUTHOR_NAME"] =
-              ENV["GIT_COMMITTER_NAME"] =
-                ENV["HOMEBREW_GIT_NAME"]
+            ENV["GIT_AUTHOR_NAME"] = ENV["GIT_COMMITTER_NAME"] =
+              ENV["HOMEBREW_GIT_NAME"]
           end
+
           if ENV["HOMEBREW_GIT_EMAIL"]
-            ENV["GIT_AUTHOR_EMAIL"] =
-              ENV["GIT_COMMITTER_EMAIL"] =
-                ENV["HOMEBREW_GIT_EMAIL"]
+            ENV["GIT_AUTHOR_EMAIL"] = ENV["GIT_COMMITTER_EMAIL"] =
+              ENV["HOMEBREW_GIT_EMAIL"]
           end
 
           short_name = formula_name.split("/", -1).last

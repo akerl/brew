@@ -27,11 +27,6 @@ if ENV["HOMEBREW_TESTS_COVERAGE"]
     ENV["COVERALLS_REPO_TOKEN"] = ENV["HOMEBREW_COVERALLS_REPO_TOKEN"]
   end
 
-  if ENV["HOMEBREW_AZURE_PIPELINES"]
-    require "simplecov-cobertura"
-    formatters << SimpleCov::Formatter::CoberturaFormatter
-  end
-
   SimpleCov.formatters = SimpleCov::Formatter::MultiFormatter.new(formatters)
 end
 
@@ -98,6 +93,10 @@ RSpec.configure do |config|
     skip "Needs official command Taps." unless ENV["HOMEBREW_TEST_OFFICIAL_CMD_TAPS"]
   end
 
+  config.before(:each, :needs_linux) do
+    skip "Not on Linux." unless OS.linux?
+  end
+
   config.before(:each, :needs_macos) do
     skip "Not on macOS." unless OS.mac?
   end
@@ -133,6 +132,10 @@ RSpec.configure do |config|
     skip "unzip not installed." unless which("unzip")
   end
 
+  config.before(:each, :needs_no_bad_linux_portable_ruby) do
+    skip "using Linux portable-ruby." if OS.linux? && RUBY_PATH.to_s.end_with?("portable-ruby/2.6.3/bin/ruby")
+  end
+
   config.around do |example|
     def find_files
       Find.find(TEST_TMPDIR)
@@ -141,6 +144,7 @@ RSpec.configure do |config|
     end
 
     begin
+      Homebrew.raise_deprecation_exceptions = true
       Tap.clear_cache
       FormulaInstaller.clear_attempted
 
@@ -214,11 +218,9 @@ RSpec::Matchers.alias_matcher :a_string_containing, :include
 
 RSpec::Matchers.define :a_json_string do
   match do |actual|
-    begin
-      JSON.parse(actual)
-      true
-    rescue JSON::ParserError
-      false
-    end
+    JSON.parse(actual)
+    true
+  rescue JSON::ParserError
+    false
   end
 end

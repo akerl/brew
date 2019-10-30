@@ -52,6 +52,9 @@ HOMEBREW_USER_AGENT_FAKE_SAFARI =
 HOMEBREW_BOTTLE_DEFAULT_DOMAIN = ENV["HOMEBREW_BOTTLE_DEFAULT_DOMAIN"]
 HOMEBREW_BOTTLE_DOMAIN = ENV["HOMEBREW_BOTTLE_DOMAIN"]
 
+HOMEBREW_DEFAULT_PREFIX = "/usr/local"
+LINUXBREW_DEFAULT_PREFIX = "/home/linuxbrew/.linuxbrew"
+
 require "fileutils"
 require "os"
 require "os/global"
@@ -59,7 +62,7 @@ require "os/global"
 module Homebrew
   extend FileUtils
 
-  DEFAULT_PREFIX ||= "/usr/local"
+  DEFAULT_PREFIX ||= HOMEBREW_DEFAULT_PREFIX
   DEFAULT_CELLAR = "#{DEFAULT_PREFIX}/Cellar"
   DEFAULT_REPOSITORY = "#{DEFAULT_PREFIX}/Homebrew"
 
@@ -103,11 +106,9 @@ require "PATH"
 
 ENV["HOMEBREW_PATH"] ||= ENV["PATH"]
 ORIGINAL_PATHS = PATH.new(ENV["HOMEBREW_PATH"]).map do |p|
-  begin
-    Pathname.new(p).expand_path
-  rescue
-    nil
-  end
+  Pathname.new(p).expand_path
+rescue
+  nil
 end.compact.freeze
 
 HOMEBREW_INTERNAL_COMMAND_ALIASES = {

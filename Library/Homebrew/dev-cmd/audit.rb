@@ -18,12 +18,12 @@ module Homebrew
   def audit_args
     Homebrew::CLI::Parser.new do
       usage_banner <<~EOS
-        `audit` [<options>] <formula>
+        `audit` [<options>] [<formula>]
 
         Check <formula> for Homebrew coding style violations. This should be run before
-        submitting a new formula. Will exit with a non-zero status if any errors are
+        submitting a new formula. If no <formula> are provided, check all locally
+        available formulae. Will exit with a non-zero status if any errors are
         found, which can be useful for implementing pre-commit hooks.
-        If no <formula> are provided, all of them are checked.
       EOS
       switch "--strict",
              description: "Run additional style checks, including RuboCop style checks."
@@ -38,7 +38,7 @@ module Homebrew
       switch "--display-cop-names",
              description: "Include the RuboCop cop name for each violation in the output."
       switch "--display-filename",
-             description: "Prefix every line of output with name of the file or formula being audited, to "\
+             description: "Prefix every line of output with the file or formula name being audited, to "\
                           "make output easy to grep."
       switch "-D", "--audit-debug",
              description: "Enable debugging and profiling of audit methods."
@@ -95,7 +95,7 @@ module Homebrew
       odie "--only-cops/--except-cops and --strict/--only cannot be used simultaneously!"
     end
 
-    options = { fix: args.fix?, realpath: true }
+    options = { fix: args.fix? }
 
     if only_cops
       options[:only_cops] = only_cops
@@ -109,7 +109,6 @@ module Homebrew
       options[:only_cops] = [:FormulaAudit]
     end
 
-    options[:display_cop_names] = args.display_cop_names?
     # Check style in a single batch run up front for performance
     style_results = Style.check_style_json(files, options)
 
@@ -118,6 +117,8 @@ module Homebrew
       only = only_cops ? ["style"] : args.only
       options = { new_formula: new_formula, strict: strict, online: online, only: only, except: args.except }
       options[:style_offenses] = style_results.file_offenses(f.path)
+      options[:display_cop_names] = args.display_cop_names?
+
       fa = FormulaAuditor.new(f, options)
       fa.audit
       next if fa.problems.empty? && fa.new_formula_problems.empty?
@@ -253,7 +254,7 @@ module Homebrew
       wanted_mode = 0100644 & ~File.umask
       actual_mode = formula.path.stat.mode
       unless actual_mode == wanted_mode
-        problem format("Incorrect file permissions (%03<actual>o): chmod %03<wanted>o %{path}",
+        problem format("Incorrect file permissions (%03<actual>o): chmod %03<wanted>o %<path>s",
                        actual: actual_mode & 0777,
                        wanted: wanted_mode & 0777,
                        path:   formula.path)
@@ -263,7 +264,7 @@ module Homebrew
 
       problem "'__END__' was found, but 'DATA' is not used" if text.end? && !text.data?
 
-      if text =~ /inreplace [^\n]* do [^\n]*\n[^\n]*\.gsub![^\n]*\n\ *end/m
+      if text.to_s.match?(/inreplace [^\n]* do [^\n]*\n[^\n]*\.gsub![^\n]*\n\ *end/m)
         problem "'inreplace ... do' was used for a single substitution (use the non-block form instead)."
       end
 
@@ -391,10 +392,10 @@ module Homebrew
           if @new_formula &&
              dep_f.keg_only_reason&.reason == :provided_by_macos &&
              dep_f.keg_only_reason.valid? &&
-             !%w[apr apr-util openblas openssl].include?(dep.name)
+             !%w[apr apr-util openblas openssl openssl@1.1].include?(dep.name)
             new_formula_problem(
-              "Dependency '#{dep.name}' may be unnecessary as it is provided " \
-              "by macOS; try to build this formula without it.",
+              "Dependency '#{dep.name}' is provided by macOS; " \
+              "please replace 'depends_on' with 'uses_from_macos'.",
             )
           end
 
@@ -433,16 +434,14 @@ module Homebrew
 
     def audit_conflicts
       formula.conflicts.each do |c|
-        begin
-          Formulary.factory(c.name)
-        rescue TapFormulaUnavailableError
-          # Don't complain about missing cross-tap conflicts.
-          next
-        rescue FormulaUnavailableError
-          problem "Can't find conflicting formula #{c.name.inspect}."
-        rescue TapFormulaAmbiguityError, TapFormulaWithOldnameAmbiguityError
-          problem "Ambiguous conflicting formula #{c.name.inspect}."
-        end
+        Formulary.factory(c.name)
+      rescue TapFormulaUnavailableError
+        # Don't complain about missing cross-tap conflicts.
+        next
+      rescue FormulaUnavailableError
+        problem "Can't find conflicting formula #{c.name.inspect}."
+      rescue TapFormulaAmbiguityError, TapFormulaWithOldnameAmbiguityError
+        problem "Ambiguous conflicting formula #{c.name.inspect}."
       end
     end
 
@@ -515,6 +514,7 @@ module Homebrew
         gnupg@1.4
         lua@5.1
         python@2
+        numpy@1.16
       ].freeze
 
       return if keg_only_whitelist.include?(formula.name) || formula.name.start_with?("gcc@")
@@ -563,16 +563,8 @@ module Homebrew
     end
 
     def audit_github_repository
-      return unless @core_tap
-      return unless @online
-      return unless @new_formula
-
-      regex = %r{https?://github\.com/([^/]+)/([^/]+)/?.*}
-      _, user, repo = *regex.match(formula.stable.url) if formula.stable
-      _, user, repo = *regex.match(formula.homepage) unless user
-      return if !user || !repo
-
-      repo.gsub!(/.git$/, "")
+      user, repo = get_repo_data(%r{https?://github\.com/([^/]+)/([^/]+)/?.*})
+      return if user.nil?
 
       begin
         metadata = GitHub.repository(user, repo)
@@ -591,6 +583,78 @@ module Homebrew
       return if Date.parse(metadata["created_at"]) <= (Date.today - 30)
 
       new_formula_problem "GitHub repository too new (<30 days old)"
+    end
+
+    def audit_gitlab_repository
+      user, repo = get_repo_data(%r{https?://gitlab\.com/([^/]+)/([^/]+)/?.*})
+      return if user.nil?
+
+      out, _, status= curl_output("--request", "GET", "https://gitlab.com/api/v4/projects/#{user}%2F#{repo}")
+      return unless status.success?
+
+      metadata = JSON.parse(out)
+      return if metadata.nil?
+
+      new_formula_problem "GitLab fork (not canonical repository)" if metadata["fork"]
+      if (metadata["forks_count"] < 30) && (metadata["star_count"] < 75)
+        new_formula_problem "GitLab repository not notable enough (<30 forks and <75 stars)"
+      end
+
+      return if Date.parse(metadata["created_at"]) <= (Date.today - 30)
+
+      new_formula_problem "GitLab repository too new (<30 days old)"
+    end
+
+    def audit_bitbucket_repository
+      user, repo = get_repo_data(%r{https?://bitbucket\.org/([^/]+)/([^/]+)/?.*})
+      return if user.nil?
+
+      api_url = "https://api.bitbucket.org/2.0/repositories/#{user}/#{repo}"
+      out, _, status= curl_output("--request", "GET", api_url)
+      return unless status.success?
+
+      metadata = JSON.parse(out)
+      return if metadata.nil?
+
+      new_formula_problem "Uses deprecated mercurial support in Bitbucket" if metadata["scm"] == "hg"
+
+      if metadata["parent"]["full_name"] == "#{user}/#{repo}"
+        new_formula_problem "Bitbucket fork (not canonical repository)"
+      end
+
+      if Date.parse(metadata["created_on"]) >= (Date.today - 30)
+        new_formula_problem "Bitbucket repository too new (<30 days old)"
+      end
+
+      forks_out, _, forks_status= curl_output("--request", "GET", "#{api_url}/forks")
+      return unless forks_status.success?
+
+      watcher_out, _, watcher_status= curl_output("--request", "GET", "#{api_url}/watchers")
+      return unless watcher_status.success?
+
+      forks_metadata = JSON.parse(forks_out)
+      return if forks_metadata.nil?
+
+      watcher_metadata = JSON.parse(watcher_out)
+      return if watcher_metadata.nil?
+
+      return if (forks_metadata["size"] < 30) && (watcher_metadata["size"] < 75)
+
+      new_formula_problem "Bitbucket repository not notable enough (<30 forks and <75 watchers)"
+    end
+
+    def get_repo_data(regex)
+      return unless @core_tap
+      return unless @online
+      return unless @new_formula
+
+      _, user, repo = *regex.match(formula.stable.url) if formula.stable
+      _, user, repo = *regex.match(formula.homepage) unless user
+      return if !user || !repo
+
+      repo.gsub!(/.git$/, "")
+
+      [user, repo]
     end
 
     def audit_specs
@@ -694,6 +758,9 @@ module Homebrew
       gnome_devel_whitelist = %w[
         libart 2.3.21
         pygtkglext 1.1.0
+        gtk-mac-integration 2.1.3
+        gtk-doc 1.31
+        gcab 1.3
       ].each_slice(2).to_a.map do |formula, version|
         [formula, version.split(".")[0..1].join(".")]
       end
@@ -824,7 +891,7 @@ module Homebrew
       end
       bin_names.each do |name|
         ["system", "shell_output", "pipe_output"].each do |cmd|
-          if text =~ /test do.*#{cmd}[\(\s]+['"]#{Regexp.escape(name)}[\s'"]/m
+          if text.to_s.match?(/test do.*#{cmd}[\(\s]+['"]#{Regexp.escape(name)}[\s'"]/m)
             problem %Q(fully scope test #{cmd} calls, e.g. #{cmd} "\#{bin}/#{name}")
           end
         end
@@ -876,7 +943,7 @@ module Homebrew
 
       problem "`#{Regexp.last_match(1)}` is now unnecessary" if line =~ /(require ["']formula["'])/
 
-      if line =~ %r{#\{share\}/#{Regexp.escape(formula.name)}[/'"]}
+      if line.match?(%r{#\{share\}/#{Regexp.escape(formula.name)}[/'"]})
         problem "Use \#{pkgshare} instead of \#{share}/#{formula.name}"
       end
 
@@ -917,18 +984,6 @@ module Homebrew
         is set correctly and expected files are installed.
         The prefix configure/make argument may be case-sensitive.
       EOS
-    end
-
-    def audit_url_is_not_binary
-      return unless @core_tap
-
-      urls = @specs.map(&:url)
-
-      urls.each do |url|
-        if url =~ /darwin/i && (url =~ /x86_64/i || url =~ /amd64/i)
-          problem "#{url} looks like a binary package, not a source archive. The `core` tap is source-only."
-        end
-      end
     end
 
     def quote_dep(dep)
@@ -1015,7 +1070,7 @@ module Homebrew
 
       problem "version #{version} should not have a leading 'v'" if version.to_s.start_with?("v")
 
-      return unless version.to_s =~ /_\d+$/
+      return unless version.to_s.match?(/_\d+$/)
 
       problem "version #{version} should not end with an underline and a number"
     end
@@ -1038,7 +1093,7 @@ module Homebrew
 
         problem "Redundant :module value in URL" if mod == name
 
-        if url =~ %r{:[^/]+$}
+        if url.match?(%r{:[^/]+$})
           mod = url.split(":").last
 
           if mod == name
@@ -1078,7 +1133,7 @@ module Homebrew
         if strategy <= CurlDownloadStrategy && !url.start_with?("file")
           # A `brew mirror`'ed URL is usually not yet reachable at the time of
           # pull request.
-          next if url =~ %r{^https://dl.bintray.com/homebrew/mirror/}
+          next if url.match?(%r{^https://dl.bintray.com/homebrew/mirror/})
 
           if http_content_problem = curl_check_http_content(url)
             problem http_content_problem

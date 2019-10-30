@@ -351,28 +351,26 @@ class FormulaInstaller
     return if ARGV.force?
 
     conflicts = formula.conflicts.select do |c|
-      begin
-        f = Formulary.factory(c.name)
-      rescue TapFormulaUnavailableError
-        # If the formula name is a fully-qualified name let's silently
-        # ignore it as we don't care about things used in taps that aren't
-        # currently tapped.
-        false
-      rescue FormulaUnavailableError => e
-        # If the formula name doesn't exist any more then complain but don't
-        # stop installation from continuing.
-        opoo <<~EOS
-          #{formula}: #{e.message}
-          'conflicts_with \"#{c.name}\"' should be removed from #{formula.path.basename}.
-        EOS
+      f = Formulary.factory(c.name)
+    rescue TapFormulaUnavailableError
+      # If the formula name is a fully-qualified name let's silently
+      # ignore it as we don't care about things used in taps that aren't
+      # currently tapped.
+      false
+    rescue FormulaUnavailableError => e
+      # If the formula name doesn't exist any more then complain but don't
+      # stop installation from continuing.
+      opoo <<~EOS
+        #{formula}: #{e.message}
+        'conflicts_with \"#{c.name}\"' should be removed from #{formula.path.basename}.
+      EOS
 
-        raise if ARGV.homebrew_developer?
+      raise if ARGV.homebrew_developer?
 
-        $stderr.puts "Please report this to the #{formula.tap} tap!"
-        false
-      else
-        f.linked_keg.exist? && f.opt_prefix.exist?
-      end
+      $stderr.puts "Please report this to the #{formula.tap} tap!"
+      false
+    else # rubocop:disable Lint/ElseAlignment
+      f.linked_keg.exist? && f.opt_prefix.exist?
     end
 
     raise FormulaConflictError.new(formula, conflicts) unless conflicts.empty?
@@ -479,7 +477,6 @@ class FormulaInstaller
         dependent,
         inherited_options.fetch(dependent.name, []),
       )
-      pour_bottle = true if install_bottle_for?(dep.to_formula, build)
 
       if dep.prune_from_option?(build)
         Dependency.prune
@@ -491,6 +488,8 @@ class FormulaInstaller
         Dependency.prune
       elsif dep.satisfied?(inherited_options[dep.name])
         Dependency.skip
+      else
+        pour_bottle ||= install_bottle_for?(dep.to_formula, build)
       end
     end
 
@@ -574,7 +573,7 @@ class FormulaInstaller
     end
 
     tab_tap = tab.source["tap"]
-    if df.tap.to_s != tab_tap
+    if tab_tap.present? && df.tap.present? && df.tap.to_s != tab_tap.to_s
       odie <<~EOS
         #{df} is already installed from #{tab_tap}!
         Please `brew uninstall #{df}` first."

@@ -91,7 +91,7 @@ module Cask
               args: ["list", service],
               sudo: with_sudo, print_stderr: false
             ).stdout
-            if plist_status =~ /^\{/
+            if plist_status.match?(/^\{/)
               command.run!("/bin/launchctl", args: ["remove", service], sudo: with_sudo)
               sleep 1
             end
@@ -127,10 +127,15 @@ module Cask
       # :quit/:signal must come before :kext so the kext will not be in use by a running process
       def uninstall_quit(*bundle_ids, command: nil, **_)
         bundle_ids.each do |bundle_id|
-          next if running_processes(bundle_id).empty?
+          next unless running?(bundle_id)
 
           unless User.current.gui?
-            ohai "Not logged into a GUI; skipping quitting application ID '#{bundle_id}'."
+            opoo "Not logged into a GUI; skipping quitting application ID '#{bundle_id}'."
+            next
+          end
+
+          unless User.automation_access?
+            opoo "Skipping quitting application ID '#{bundle_id}'. #{User.automation_access_instructions}"
             next
           end
 
@@ -141,10 +146,10 @@ module Cask
               Kernel.loop do
                 next unless quit(bundle_id).success?
 
-                if running_processes(bundle_id).empty?
-                  puts "Application '#{bundle_id}' quit successfully."
-                  break
-                end
+                next if running?(bundle_id)
+
+                puts "Application '#{bundle_id}' quit successfully."
+                break
               end
             end
           rescue Timeout::Error
@@ -152,6 +157,28 @@ module Cask
             next
           end
         end
+      end
+
+      def running?(bundle_id)
+        script = <<~JAVASCRIPT
+          'use strict';
+
+          ObjC.import('stdlib')
+
+          function run(argv) {
+            try {
+              var app = Application(argv[0])
+              if (app.running()) {
+                $.exit(0)
+              }
+            } catch (err) { }
+
+            $.exit(1)
+          }
+        JAVASCRIPT
+
+        system_command("osascript", args:         ["-l", "JavaScript", "-e", script, bundle_id],
+                                    print_stderr: true).status.success?
       end
 
       def quit(bundle_id)
@@ -176,8 +203,7 @@ module Cask
         JAVASCRIPT
 
         system_command "osascript", args:         ["-l", "JavaScript", "-e", script, bundle_id],
-                                    print_stderr: false,
-                                    sudo:         true
+                                    print_stderr: false
       end
       private :quit
 
@@ -206,13 +232,27 @@ module Cask
       def uninstall_login_item(*login_items, command: nil, upgrade: false, **_)
         return if upgrade
 
-        login_items.each do |name|
-          ohai "Removing login item #{name}"
+        apps = cask.artifacts.select { |a| a.class.dsl_key == :app }
+        derived_login_items = apps.map { |a| { path: a.target } }
+
+        [*derived_login_items, *login_items].each do |item|
+          type, id = if item.respond_to?(:key) && item.key?(:path)
+            ["path", item[:path]]
+          else
+            ["name", item]
+          end
+
+          unless User.automation_access?
+            opoo "Skipping removal of login item #{id}. #{User.automation_access_instructions}"
+            next
+          end
+
+          ohai "Removing login item #{id}"
           system_command!(
             "osascript",
             args: [
               "-e",
-              %Q(tell application "System Events" to delete every login item whose name is "#{name}"),
+              %Q(tell application "System Events" to delete every login item whose #{type} is #{id.to_s.inspect}),
             ],
           )
           sleep 1
@@ -322,7 +362,13 @@ module Cask
       def trash_paths(*paths, command: nil, **_)
         return if paths.empty?
 
-        result = command.run!("/usr/bin/swift", args: [TRASH_SCRIPT, *paths])
+        trashable, untrashable = paths.partition(&:writable?)
+        unless untrashable.empty?
+          opoo "These files cannot be moved to the user's Trash:"
+          $stderr.puts untrashable
+        end
+
+        result = command.run!("/usr/bin/swift", args: [TRASH_SCRIPT, *trashable])
 
         # Remove AppleScript's automatic newline.
         result.tap { |r| r.stdout.sub!(/\n$/, "") }
