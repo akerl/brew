@@ -23,11 +23,15 @@ module Homebrew
              description: "Upload to Bintray, but don't publish."
 
       named_args :formula, min: 1
+
+      hide_from_man_page!
     end
   end
 
   def mirror
     args = mirror_args.parse
+
+    odeprecated "brew mirror (Bintray will be shut down on 1st May 2021)"
 
     bintray_org = args.bintray_org || "homebrew"
     bintray_repo = args.bintray_repo || "mirror"

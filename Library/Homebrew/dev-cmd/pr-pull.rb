@@ -22,10 +22,12 @@ module Homebrew
       EOS
       switch "--no-publish",
              description: "Download the bottles, apply the bottle commit and "\
-                          "upload the bottles to Bintray, but don't publish them."
+                          "upload the bottles, but don't publish them."
       switch "--no-upload",
              description: "Download the bottles and apply the bottle commit, "\
-                          "but don't upload to Bintray or GitHub Releases."
+                          "but don't upload."
+      switch "--no-commit",
+             description: "Do not generate a new commit before uploading."
       switch "-n", "--dry-run",
              description: "Print what would be done rather than doing it."
       switch "--clean",
@@ -44,6 +46,8 @@ module Homebrew
       switch "--warn-on-upload-failure",
              description: "Warn instead of raising an error if the bottle upload fails. "\
                           "Useful for repairing bottle uploads that previously failed."
+      flag   "--committer=",
+             description: "Specify a committer name and email in `git`'s standard author format."
       flag   "--message=",
              depends_on:  "--autosquash",
              description: "Message to include when autosquashing revision bumps, deletions, and rebuilds."
@@ -57,6 +61,9 @@ module Homebrew
              description: "Target tap repository (default: `homebrew/core`)."
       flag   "--root-url=",
              description: "Use the specified <URL> as the root of the bottle's URL instead of Homebrew's default."
+      flag   "--root-url-using=",
+             description: "Use the specified download strategy class for downloading the bottle's URL instead of "\
+                          "Homebrew's default."
       flag   "--bintray-mirror=",
              description: "Use the specified Bintray repository to automatically mirror stable URLs "\
                           "defined in the formulae (default: `mirror`)."
@@ -365,8 +372,14 @@ module Homebrew
     mirror_repo = args.bintray_mirror || "mirror"
     tap = Tap.fetch(args.tap || CoreTap.instance.name)
 
-    Utils::Git.set_name_email!
+    Utils::Git.set_name_email!(committer: args.committer.blank?)
     Utils::Git.setup_gpg!
+
+    if (committer = args.committer)
+      committer = Utils.parse_author!(committer)
+      ENV["GIT_COMMITTER_NAME"] = committer[:name]
+      ENV["GIT_COMMITTER_EMAIL"] = committer[:email]
+    end
 
     args.named.uniq.each do |arg|
       arg = "#{tap.default_remote}/pull/#{arg}" if arg.to_i.positive?
@@ -381,18 +394,21 @@ module Homebrew
       ohai "Fetching #{tap} pull request ##{pr}"
       Dir.mktmpdir pr do |dir|
         cd dir do
-          original_commit = tap.path.git_head
-          cherry_pick_pr!(user, repo, pr, path: tap.path, args: args)
-          if args.autosquash? && !args.dry_run?
-            autosquash!(original_commit, path: tap.path,
-                        verbose: args.verbose?, resolve: args.resolve?, reason: args.message)
-          end
-          signoff!(tap.path, pr: pr, dry_run: args.dry_run?) unless args.clean?
+          original_commit = ENV["GITHUB_SHA"].presence || tap.path.git_head
 
-          unless args.no_upload?
-            mirror_formulae(tap, original_commit,
-                            org: bintray_org, repo: mirror_repo, publish: !args.no_publish?,
-                            args: args)
+          unless args.no_commit?
+            cherry_pick_pr!(user, repo, pr, path: tap.path, args: args)
+            if args.autosquash? && !args.dry_run?
+              autosquash!(original_commit, path: tap.path,
+                          verbose: args.verbose?, resolve: args.resolve?, reason: args.message)
+            end
+            signoff!(tap.path, pr: pr, dry_run: args.dry_run?) unless args.clean?
+
+            unless args.no_upload?
+              mirror_formulae(tap, original_commit,
+                              org: bintray_org, repo: mirror_repo, publish: !args.no_publish?,
+                              args: args)
+            end
           end
 
           unless formulae_need_bottles?(tap, original_commit, user, repo, pr, args: args)
@@ -423,11 +439,14 @@ module Homebrew
           upload_args = ["pr-upload"]
           upload_args << "--debug" if args.debug?
           upload_args << "--verbose" if args.verbose?
+          upload_args << "--no-commit" if args.no_commit?
           upload_args << "--no-publish" if args.no_publish?
           upload_args << "--dry-run" if args.dry_run?
           upload_args << "--keep-old" if args.keep_old?
           upload_args << "--warn-on-upload-failure" if args.warn_on_upload_failure?
+          upload_args << "--committer=#{args.committer}" if args.committer
           upload_args << "--root-url=#{args.root_url}" if args.root_url
+          upload_args << "--root-url-using=#{args.root_url_using}" if args.root_url_using
           upload_args << if archive_item.present?
             "--archive-item=#{archive_item}"
           else
@@ -443,7 +462,7 @@ end
 class GitHubArtifactDownloadStrategy < AbstractFileDownloadStrategy
   extend T::Sig
 
-  def fetch
+  def fetch(timeout: nil)
     ohai "Downloading #{url}"
     if cached_location.exist?
       puts "Already downloaded: #{cached_location}"
@@ -451,7 +470,8 @@ class GitHubArtifactDownloadStrategy < AbstractFileDownloadStrategy
       begin
         curl "--location", "--create-dirs", "--output", temporary_path, url,
              *meta.fetch(:curl_args, []),
-             secrets: meta.fetch(:secrets, [])
+             secrets: meta.fetch(:secrets, []),
+             timeout: timeout
       rescue ErrorDuringExecution
         raise CurlDownloadStrategyError, url
       end

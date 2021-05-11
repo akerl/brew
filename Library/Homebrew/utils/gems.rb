@@ -88,7 +88,10 @@ module Homebrew
       specs = Gem.install name, version, document: []
     end
 
-    # Add the new specs to the $LOAD_PATH.
+    specs += specs.flat_map(&:runtime_dependencies)
+                  .flat_map(&:to_specs)
+
+    # Add the specs to the $LOAD_PATH.
     specs.each do |spec|
       spec.require_paths.each do |path|
         full_path = File.join(spec.full_gem_path, path)
@@ -125,7 +128,12 @@ module Homebrew
     )
   end
 
-  def install_bundler_gems!(only_warn_on_failure: false)
+  def install_bundler_gems!(only_warn_on_failure: false, setup_path: true)
+    old_path = ENV["PATH"]
+    old_gem_path = ENV["GEM_PATH"]
+    old_gem_home = ENV["GEM_HOME"]
+    old_bundle_gemfile = ENV["BUNDLE_GEMFILE"]
+
     install_bundler!
 
     ENV["BUNDLE_GEMFILE"] = File.join(ENV.fetch("HOMEBREW_LIBRARY"), "Homebrew", "Gemfile")
@@ -152,5 +160,13 @@ module Homebrew
     end
 
     setup_gem_environment!
+  ensure
+    unless setup_path
+      # Reset the paths. We need to have at least temporarily changed them while invoking `bundle`.
+      ENV["PATH"] = old_path
+      ENV["GEM_PATH"] = old_gem_path
+      ENV["GEM_HOME"] = old_gem_home
+      ENV["BUNDLE_GEMFILE"] = old_bundle_gemfile
+    end
   end
 end

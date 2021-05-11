@@ -3,11 +3,15 @@
 
 require "open3"
 
+require "extend/time"
+
 module Utils
   # Helper function for interacting with `curl`.
   #
   # @api private
   module Curl
+    using TimeRemaining
+
     module_function
 
     def curl_executable
@@ -49,14 +53,20 @@ module Utils
         args << "--silent" unless $stdout.tty?
       end
 
+      args << "--connect-timeout" << connect_timeout.round(3) if options[:connect_timeout]
+      args << "--max-time" << max_time.round(3) if options[:max_time]
       args << "--retry" << Homebrew::EnvConfig.curl_retries unless options[:retry] == false
+      args << "--retry-max-time" << retry_max_time.round if options[:retry_max_time]
 
       args + extra_args
     end
 
     def curl_with_workarounds(
-      *args, secrets: nil, print_stdout: nil, print_stderr: nil, debug: nil, verbose: nil, env: {}, **options
+      *args,
+      secrets: nil, print_stdout: nil, print_stderr: nil, debug: nil, verbose: nil, env: {}, timeout: nil, **options
     )
+      end_time = Time.now + timeout if timeout
+
       command_options = {
         secrets:      secrets,
         print_stdout: print_stdout,
@@ -68,14 +78,22 @@ module Utils
       # SSL_CERT_FILE can be incorrectly set by users or portable-ruby and screw
       # with SSL downloads so unset it here.
       result = system_command curl_executable,
-                              args: curl_args(*args, **options),
-                              env:  { "SSL_CERT_FILE" => nil }.merge(env),
+                              args:    curl_args(*args, **options),
+                              env:     { "SSL_CERT_FILE" => nil }.merge(env),
+                              timeout: end_time&.remaining,
                               **command_options
 
       return result if result.success? || !args.exclude?("--http1.1")
 
+      raise Timeout::Error, result.stderr.lines.last.chomp if timeout && result.status.exitstatus == 28
+
       # Error in the HTTP2 framing layer
-      return curl_with_workarounds(*args, "--http1.1", **command_options, **options) if result.status.exitstatus == 16
+      if result.status.exitstatus == 16
+        return curl_with_workarounds(
+          *args, "--http1.1",
+          timeout: end_time&.remaining, **command_options, **options
+        )
+      end
 
       # This is a workaround for https://github.com/curl/curl/issues/1618.
       if result.status.exitstatus == 56 # Unexpected EOF
@@ -150,7 +168,8 @@ module Utils
         details[:headers].match?(/^Set-Cookie: incap_ses_/i)
     end
 
-    def curl_check_http_content(url, specs: {}, user_agents: [:default], check_content: false, strict: false)
+    def curl_check_http_content(url, url_type, specs: {}, user_agents: [:default],
+                                check_content: false, strict: false)
       return unless url.start_with? "http"
 
       secure_url = url.sub(/\Ahttp:/, "https:")
@@ -158,9 +177,12 @@ module Utils
       hash_needed = false
       if url != secure_url
         user_agents.each do |user_agent|
-          secure_details =
+          secure_details = begin
             curl_http_content_headers_and_checksum(secure_url, specs: specs, hash_needed: true,
                                                    user_agent: user_agent)
+          rescue Timeout::Error
+            next
+          end
 
           next unless http_status_ok?(secure_details[:status])
 
@@ -181,18 +203,18 @@ module Utils
         # Hack around https://github.com/Homebrew/brew/issues/3199
         return if MacOS.version == :el_capitan
 
-        return "The URL #{url} is not reachable"
+        return "The #{url_type} #{url} is not reachable"
       end
 
       unless http_status_ok?(details[:status])
         return if url_protected_by_cloudflare?(details) || url_protected_by_incapsula?(details)
 
-        return "The URL #{url} is not reachable (HTTP status code #{details[:status]})"
+        return "The #{url_type} #{url} is not reachable (HTTP status code #{details[:status]})"
       end
 
       if url.start_with?("https://") && Homebrew::EnvConfig.no_insecure_redirect? &&
          !details[:final_url].start_with?("https://")
-        return "The URL #{url} redirects back to HTTP"
+        return "The #{url_type} #{url} redirects back to HTTP"
       end
 
       return unless secure_details
@@ -209,7 +231,7 @@ module Utils
       if (etag_match || content_length_match || file_match) &&
          secure_details[:final_url].start_with?("https://") &&
          url.start_with?("http://")
-        return "The URL #{url} should use HTTPS rather than HTTP"
+        return "The #{url_type} #{url} should use HTTPS rather than HTTP"
       end
 
       return unless check_content
@@ -221,7 +243,7 @@ module Utils
       # Check for the same content after removing all protocols
       if (http_content && https_content) && (http_content == https_content) &&
          url.start_with?("http://") && secure_details[:final_url].start_with?("https://")
-        return "The URL #{url} should use HTTPS rather than HTTP"
+        return "The #{url_type} #{url} should use HTTPS rather than HTTP"
       end
 
       return unless strict
@@ -229,13 +251,13 @@ module Utils
       # Same size, different content after normalization
       # (typical causes: Generated ID, Timestamp, Unix time)
       if http_content.length == https_content.length
-        return "The URL #{url} may be able to use HTTPS rather than HTTP. Please verify it in a browser."
+        return "The #{url_type} #{url} may be able to use HTTPS rather than HTTP. Please verify it in a browser."
       end
 
       lenratio = (100 * https_content.length / http_content.length).to_i
       return unless (90..110).cover?(lenratio)
 
-      "The URL #{url} may be able to use HTTPS rather than HTTP. Please verify it in a browser."
+      "The #{url_type} #{url} may be able to use HTTPS rather than HTTP. Please verify it in a browser."
     end
 
     def curl_http_content_headers_and_checksum(url, specs: {}, hash_needed: false, user_agent: :default)

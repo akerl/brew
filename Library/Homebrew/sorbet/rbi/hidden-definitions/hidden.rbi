@@ -2685,6 +2685,104 @@ module ActiveSupport
   def self.version(); end
 end
 
+class Addressable::Template
+  def ==(template); end
+
+  def eql?(template); end
+
+  def expand(mapping, processor=T.unsafe(nil), normalize_values=T.unsafe(nil)); end
+
+  def extract(uri, processor=T.unsafe(nil)); end
+
+  def generate(params=T.unsafe(nil), recall=T.unsafe(nil), options=T.unsafe(nil)); end
+
+  def initialize(pattern); end
+
+  def keys(); end
+
+  def match(uri, processor=T.unsafe(nil)); end
+
+  def named_captures(); end
+
+  def names(); end
+
+  def partial_expand(mapping, processor=T.unsafe(nil), normalize_values=T.unsafe(nil)); end
+
+  def pattern(); end
+
+  def source(); end
+
+  def to_regexp(); end
+
+  def variable_defaults(); end
+
+  def variables(); end
+  EXPRESSION = ::T.let(nil, ::T.untyped)
+  JOINERS = ::T.let(nil, ::T.untyped)
+  LEADERS = ::T.let(nil, ::T.untyped)
+  RESERVED = ::T.let(nil, ::T.untyped)
+  UNRESERVED = ::T.let(nil, ::T.untyped)
+  VARIABLE_LIST = ::T.let(nil, ::T.untyped)
+  VARNAME = ::T.let(nil, ::T.untyped)
+  VARSPEC = ::T.let(nil, ::T.untyped)
+end
+
+class Addressable::Template::InvalidTemplateOperatorError
+end
+
+class Addressable::Template::InvalidTemplateOperatorError
+end
+
+class Addressable::Template::InvalidTemplateValueError
+end
+
+class Addressable::Template::InvalidTemplateValueError
+end
+
+class Addressable::Template::MatchData
+  def [](key, len=T.unsafe(nil)); end
+
+  def captures(); end
+
+  def initialize(uri, template, mapping); end
+
+  def keys(); end
+
+  def mapping(); end
+
+  def names(); end
+
+  def post_match(); end
+
+  def pre_match(); end
+
+  def string(); end
+
+  def template(); end
+
+  def to_a(); end
+
+  def uri(); end
+
+  def values(); end
+
+  def values_at(*indexes); end
+
+  def variables(); end
+end
+
+class Addressable::Template::MatchData
+end
+
+class Addressable::Template::TemplateOperatorAbortedError
+end
+
+class Addressable::Template::TemplateOperatorAbortedError
+end
+
+class Addressable::Template
+end
+
 class Addrinfo
   def connect_internal(local_addrinfo, timeout=T.unsafe(nil)); end
 end
@@ -5539,11 +5637,6 @@ class Cask::Artifact::AbstractArtifact
   extend ::T::Private::Methods::SingletonMethodHooks
 end
 
-class Cask::Audit
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
 module Cask::Cache
   extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
@@ -6114,80 +6207,6 @@ module CodeRay
   def self.scanner(lang, options=T.unsafe(nil), &block); end
 end
 
-module Codecov
-  VERSION = ::T.let(nil, ::T.untyped)
-end
-
-module Codecov::SimpleCov
-end
-
-class Codecov::SimpleCov::Formatter
-  def format(report); end
-  RESULT_FILE_NAME = ::T.let(nil, ::T.untyped)
-end
-
-class Codecov::SimpleCov::Formatter
-end
-
-module Codecov::SimpleCov
-end
-
-class Codecov::Uploader
-  APPVEYOR = ::T.let(nil, ::T.untyped)
-  AZUREPIPELINES = ::T.let(nil, ::T.untyped)
-  BITBUCKET = ::T.let(nil, ::T.untyped)
-  BITRISE = ::T.let(nil, ::T.untyped)
-  BUILDKITE = ::T.let(nil, ::T.untyped)
-  CIRCLE = ::T.let(nil, ::T.untyped)
-  CODEBUILD = ::T.let(nil, ::T.untyped)
-  CODESHIP = ::T.let(nil, ::T.untyped)
-  DRONEIO = ::T.let(nil, ::T.untyped)
-  GITHUB = ::T.let(nil, ::T.untyped)
-  GITLAB = ::T.let(nil, ::T.untyped)
-  HEROKU = ::T.let(nil, ::T.untyped)
-  JENKINS = ::T.let(nil, ::T.untyped)
-  RECOGNIZED_CIS = ::T.let(nil, ::T.untyped)
-  SEMAPHORE = ::T.let(nil, ::T.untyped)
-  SHIPPABLE = ::T.let(nil, ::T.untyped)
-  SOLANO = ::T.let(nil, ::T.untyped)
-  TEAMCITY = ::T.let(nil, ::T.untyped)
-  TRAVIS = ::T.let(nil, ::T.untyped)
-  WERCKER = ::T.let(nil, ::T.untyped)
-end
-
-class Codecov::Uploader
-  def self.black(str); end
-
-  def self.build_params(ci); end
-
-  def self.detect_ci(); end
-
-  def self.display_header(); end
-
-  def self.green(str); end
-
-  def self.gzip_report(report); end
-
-  def self.handle_report_response(report); end
-
-  def self.net_blockers(switch); end
-
-  def self.red(str); end
-
-  def self.retry_request(req, https); end
-
-  def self.upload(report, disable_net_blockers=T.unsafe(nil)); end
-
-  def self.upload_to_codecov(ci, report); end
-
-  def self.upload_to_v2(url, report, query, query_without_token); end
-
-  def self.upload_to_v4(url, report, query, query_without_token); end
-end
-
-module Codecov
-end
-
 class CompilerSelector::Compiler
   def self.[](*_); end
 
@@ -6226,6 +6245,10 @@ end
 module CopHelper
   extend ::RSpec::Core::SharedContext
   extend ::RSpec::Its
+end
+
+class CurlDownloadStrategy
+  include ::AbstractDownloadStrategy::Compat_Fetch
 end
 
 class CxxStdlib
@@ -7980,6 +8003,16 @@ module GitHub::Actions
   extend ::T::Private::Methods::SingletonMethodHooks
 end
 
+class GitHubPackages
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class GitHubReleases
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
 module GitRepositoryExtension
   extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
@@ -8188,6 +8221,10 @@ module Homebrew::EnvConfig
 
   def self.github_api_token(); end
 
+  def self.github_packages_token(); end
+
+  def self.github_packages_user(); end
+
   def self.http_proxy(); end
 
   def self.https_proxy(); end
@@ -8223,6 +8260,8 @@ module Homebrew::EnvConfig
   def self.no_proxy(); end
 
   def self.pry?(); end
+
+  def self.simulate_macos_on_linux?(); end
 
   def self.skip_or_later_bottles?(); end
 
@@ -8263,7 +8302,62 @@ module Homebrew::Livecheck::SkipConditions
   extend ::T::Private::Methods::SingletonMethodHooks
 end
 
+class Homebrew::Livecheck::Strategy::Apache
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Bitbucket
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Cpan
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::ElectronBuilder
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Git
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::GithubLatest
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Gnome
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Gnu
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Hackage
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
 class Homebrew::Livecheck::Strategy::HeaderMatch
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Launchpad
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Npm
   extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
 end
@@ -8271,6 +8365,22 @@ end
 class Homebrew::Livecheck::Strategy::PageMatch
   extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Pypi
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Sourceforge
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class Homebrew::Livecheck::Strategy::Sparkle::Item
+  def short_version(*args, &block); end
+
+  def version(*args, &block); end
 end
 
 class Homebrew::Livecheck::Strategy::Sparkle::Item
@@ -8284,12 +8394,17 @@ class Homebrew::Livecheck::Strategy::Sparkle
   extend ::T::Private::Methods::SingletonMethodHooks
 end
 
+class Homebrew::Livecheck::Strategy::Xorg
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
 module Homebrew::Livecheck::Strategy
   extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
 end
 
-module Homebrew::Livecheck
+class Homebrew::Service
   extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
 end
@@ -9368,8 +9483,6 @@ class IRB::DefaultEncodings
 
   def external=(_); end
 
-  def internal(); end
-
   def internal=(_); end
 end
 
@@ -9571,6 +9684,8 @@ module IRB
 
   def self.load_modules(); end
 
+  def self.parse_opts(argv: T.unsafe(nil)); end
+
   def self.rc_file(ext=T.unsafe(nil)); end
 
   def self.rc_file_generators(); end
@@ -9581,6 +9696,7 @@ module IRB
 end
 
 class Integer
+  include ::JSON::Ext::Generator::GeneratorMethods::Integer
   include ::MessagePack::CoreExt
   def to_bn(); end
 end
@@ -9599,12 +9715,6 @@ JSON::State = JSON::Ext::Generator::State
 
 JSON::UnparserError = JSON::GeneratorError
 
-module Kconv
-  AUTO = ::T.let(nil, ::T.untyped)
-  NOCONV = ::T.let(nil, ::T.untyped)
-  UNKNOWN = ::T.let(nil, ::T.untyped)
-end
-
 class Keg::ConflictError
   extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
@@ -9616,9 +9726,8 @@ class Keg::DirectoryNotWritableError
 end
 
 class Keg::Relocation
-  def self.[](*_); end
-
-  def self.members(); end
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
 end
 
 class Keg
@@ -11234,6 +11343,10 @@ class MiniPortile
 end
 
 class MiniPortile
+  def self.mingw?(); end
+
+  def self.mswin?(); end
+
   def self.windows?(); end
 end
 
@@ -12305,8 +12418,6 @@ end
 class Net::HTTPAlreadyReported
 end
 
-Net::HTTPClientError::EXCEPTION_TYPE = Net::HTTPServerException
-
 Net::HTTPClientErrorCode = Net::HTTPClientError
 
 class Net::HTTPEarlyHints
@@ -12372,8 +12483,6 @@ end
 class Net::HTTPRangeNotSatisfiable
 end
 
-Net::HTTPRedirection::EXCEPTION_TYPE = Net::HTTPRetriableError
-
 Net::HTTPRedirectionCode = Net::HTTPRedirection
 
 Net::HTTPRequestURITooLarge = Net::HTTPURITooLong
@@ -12381,8 +12490,6 @@ Net::HTTPRequestURITooLarge = Net::HTTPURITooLong
 Net::HTTPResponceReceiver = Net::HTTPResponse
 
 Net::HTTPRetriableCode = Net::HTTPRedirection
-
-Net::HTTPServerError::EXCEPTION_TYPE = Net::HTTPFatalError
 
 Net::HTTPServerErrorCode = Net::HTTPServerError
 
@@ -12546,8 +12653,8 @@ end
 class Object
   include ::Minitest::Expectations
   include ::ActiveSupport::Tryable
-  include ::Utils::Curl
   include ::SystemCommand::Mixin
+  include ::Utils::Curl
   include ::ActiveSupport::Dependencies::Loadable
   include ::ActiveSupport::ForkTracker::CoreExtPrivate
   include ::ActiveSupport::ForkTracker::CoreExt
@@ -12572,6 +12679,7 @@ class Object
   DEPRECATED_OFFICIAL_TAPS = ::T.let(nil, ::T.untyped)
   ENV = ::T.let(nil, ::T.untyped)
   FORMULA_COMPONENT_PRECEDENCE_LIST = ::T.let(nil, ::T.untyped)
+  HOMEBREW_BOTTLES_EXTNAME_REGEX = ::T.let(nil, ::T.untyped)
   HOMEBREW_BOTTLE_DEFAULT_DOMAIN = ::T.let(nil, ::T.untyped)
   HOMEBREW_BREW_DEFAULT_GIT_REMOTE = ::T.let(nil, ::T.untyped)
   HOMEBREW_BREW_FILE = ::T.let(nil, ::T.untyped)
@@ -12601,7 +12709,6 @@ class Object
   HOMEBREW_PRODUCT = ::T.let(nil, ::T.untyped)
   HOMEBREW_PULL_API_REGEX = ::T.let(nil, ::T.untyped)
   HOMEBREW_PULL_OR_COMMIT_URL_REGEX = ::T.let(nil, ::T.untyped)
-  HOMEBREW_RELEASES_URL_REGEX = ::T.let(nil, ::T.untyped)
   HOMEBREW_REPOSITORY = ::T.let(nil, ::T.untyped)
   HOMEBREW_REQUIRED_RUBY_VERSION = ::T.let(nil, ::T.untyped)
   HOMEBREW_RUBY_EXEC_ARGS = ::T.let(nil, ::T.untyped)
@@ -17047,8 +17154,6 @@ class Pry
   def self.hooks=(*args, &block); end
 
   def self.in_critical_section?(); end
-
-  def self.init(); end
 
   def self.initial_session?(); end
 
@@ -26892,11 +26997,6 @@ class RuboCop::Cop::FormulaCop
   def required_dependency_name?(param0, param1); end
 end
 
-class RuboCop::Cop::Style::UnlessMultipleConditions
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
 module RuboCop::RSpec::ExpectOffense
   def expect_correction(correction, loop: T.unsafe(nil), source: T.unsafe(nil)); end
 
@@ -28269,11 +28369,14 @@ end
 module SimpleCov::Formatter
 end
 
-class SimpleCov::Formatter::Codecov
-  def format(result, disable_net_blockers=T.unsafe(nil)); end
+class SimpleCov::Formatter::CoberturaFormatter
+  def format(result); end
+  DTD_URL = ::T.let(nil, ::T.untyped)
+  RESULT_FILE_NAME = ::T.let(nil, ::T.untyped)
+  VERSION = ::T.let(nil, ::T.untyped)
 end
 
-class SimpleCov::Formatter::Codecov
+class SimpleCov::Formatter::CoberturaFormatter
 end
 
 class SimpleCov::Formatter::HTMLFormatter
@@ -29141,17 +29244,7 @@ class String
 
   def indent!(amount, indent_string=T.unsafe(nil), indent_empty_lines=T.unsafe(nil)); end
 
-  def iseuc(); end
-
-  def isjis(); end
-
-  def issjis(); end
-
-  def isutf8(); end
-
   def italic(); end
-
-  def kconv(to_enc, from_enc=T.unsafe(nil)); end
 
   def light_black(); end
 
@@ -29232,20 +29325,6 @@ class String
   def to_nfkd(); end
 
   def to_time(form=T.unsafe(nil)); end
-
-  def toeuc(); end
-
-  def tojis(); end
-
-  def tolocale(); end
-
-  def tosjis(); end
-
-  def toutf16(); end
-
-  def toutf32(); end
-
-  def toutf8(); end
 
   def truncate(truncate_at, options=T.unsafe(nil)); end
 
@@ -29347,82 +29426,6 @@ class Tapioca::Compilers::Dsl::Base
   extend ::T::Helpers
   extend ::T::Private::Abstract::Hooks
   extend ::T::InterfaceWrapper::Helpers
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Compilers::DslCompiler
-  extend ::T::Sig
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Compilers::RequiresCompiler
-  extend ::T::Sig
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-module Tapioca::Compilers::Sorbet
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Compilers::SymbolTable::SymbolGenerator
-  extend ::T::Sig
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-module Tapioca::Compilers::SymbolTable::SymbolLoader
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Compilers::SymbolTableCompiler
-  extend ::T::Sig
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Compilers::TodosCompiler
-  extend ::T::Sig
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Config
-  extend ::T::Sig
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::ConfigBuilder
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Gemfile
-  Spec = ::T.let(nil, ::T.untyped)
-end
-
-class Tapioca::Gemfile::Gem
-  extend ::T::Sig
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Gemfile
-  extend ::T::Sig
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Generator
-  extend ::T::Sig
-  extend ::T::Private::Methods::MethodHooks
-  extend ::T::Private::Methods::SingletonMethodHooks
-end
-
-class Tapioca::Loader
-  extend ::T::Sig
   extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
 end
@@ -29723,6 +29726,21 @@ module URI
   def self.get_encoding(label); end
 end
 
+module URL::BlockDSL::PageWithURL
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class URL::BlockDSL
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
+class URL::DSL
+  extend ::T::Private::Methods::MethodHooks
+  extend ::T::Private::Methods::SingletonMethodHooks
+end
+
 class URL
   extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
@@ -29874,7 +29892,8 @@ class Utils::Bottles::Collector
   extend ::T::Private::Methods::SingletonMethodHooks
 end
 
-module Utils::Bottles
+class Utils::Bottles::Tag
+  extend ::T::Private::Methods::MethodHooks
   extend ::T::Private::Methods::SingletonMethodHooks
 end
 

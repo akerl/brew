@@ -166,8 +166,7 @@ describe Formula do
     end
 
     build_values_with_no_installed_alias = [
-      nil,
-      BuildOptions.new({}, {}),
+      BuildOptions.new(Options.new, f.options),
       Tab.new(source: { "path" => f.path.to_s }),
     ]
     build_values_with_no_installed_alias.each do |build|
@@ -201,7 +200,10 @@ describe Formula do
       url "foo-1.0"
     end
 
-    build_values_with_no_installed_alias = [nil, BuildOptions.new({}, {}), Tab.new(source: { "path" => f.path })]
+    build_values_with_no_installed_alias = [
+      BuildOptions.new(Options.new, f.options),
+      Tab.new(source: { "path" => f.path }),
+    ]
     build_values_with_no_installed_alias.each do |build|
       f.build = build
       expect(f.installed_alias_path).to be nil
@@ -405,7 +407,7 @@ describe Formula do
       f = formula alias_path: alias_path do
         url "foo-1.0"
       end
-      f.build = BuildOptions.new({}, {})
+      f.build = BuildOptions.new(Options.new, f.options)
 
       expect(f.alias_path).to eq(alias_path)
       expect(f.installed_alias_path).to be nil
@@ -699,6 +701,33 @@ describe Formula do
     end
   end
 
+  specify "#service" do
+    f = formula do
+      url "https://brew.sh/test-1.0.tbz"
+    end
+
+    f.class.service do
+      run [opt_bin/"beanstalkd"]
+      run_type :immediate
+      error_log_path var/"log/beanstalkd.error.log"
+      log_path var/"log/beanstalkd.log"
+      working_dir var
+      keep_alive true
+    end
+    expect(f.service).not_to eq(nil)
+  end
+
+  specify "service uses simple run" do
+    f = formula do
+      url "https://brew.sh/test-1.0.tbz"
+      service do
+        run opt_bin/"beanstalkd"
+      end
+    end
+
+    expect(f.service).not_to eq(nil)
+  end
+
   specify "dependencies" do
     f1 = formula "f1" do
       url "f1-1.0"
@@ -802,7 +831,7 @@ describe Formula do
 
     expect(Set.new(f1.recursive_requirements)).to eq(Set[])
 
-    f1.build = BuildOptions.new(["--with-xcode"], f1.options)
+    f1.build = BuildOptions.new(Options.create(["--with-xcode"]), f1.options)
 
     expect(Set.new(f1.recursive_requirements)).to eq(Set[xcode])
 
@@ -828,8 +857,7 @@ describe Formula do
       url "foo-1.0"
 
       bottle do
-        cellar(:any)
-        sha256(TEST_SHA256 => Utils::Bottles.tag)
+        sha256 cellar: :any, Utils::Bottles.tag.to_sym => TEST_SHA256
       end
     end
 

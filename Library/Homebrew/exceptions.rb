@@ -97,6 +97,25 @@ class FormulaOrCaskUnavailableError < RuntimeError
   end
 end
 
+# Raised when a formula or cask in a specific tap is not available.
+class TapFormulaOrCaskUnavailableError < FormulaOrCaskUnavailableError
+  extend T::Sig
+
+  attr_reader :tap
+
+  def initialize(tap, name)
+    super "#{tap}/#{name}"
+    @tap = tap
+  end
+
+  sig { returns(String) }
+  def to_s
+    s = super
+    s += "\nPlease tap it and then try again: brew tap #{tap}" unless tap.installed?
+    s
+  end
+end
+
 # Raised when a formula is not available.
 class FormulaUnavailableError < FormulaOrCaskUnavailableError
   extend T::Sig
@@ -708,5 +727,12 @@ class MacOSVersionError < RuntimeError
   def initialize(version)
     @version = version
     super "unknown or unsupported macOS version: #{version.inspect}"
+  end
+end
+
+# Raised when `detected_perl_shebang` etc cannot detect the shebang.
+class ShebangDetectionError < RuntimeError
+  def initialize(type, reason)
+    super "Cannot detect #{type} shebang: #{reason}."
   end
 end

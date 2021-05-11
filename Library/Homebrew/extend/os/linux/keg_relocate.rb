@@ -11,9 +11,11 @@ class Keg
     # Patching patchelf using itself fails with "Text file busy" or SIGBUS.
     return if name == "patchelf"
 
+    old_prefix, new_prefix = relocation.replacement_pair_for(:prefix)
+
     elf_files.each do |file|
       file.ensure_writable do
-        change_rpath(file, relocation.old_prefix, relocation.new_prefix)
+        change_rpath(file, old_prefix, new_prefix)
       end
     end
   end
@@ -80,7 +82,11 @@ class Keg
   end
 
   def self.relocation_formulae
-    ["patchelf"]
+    @relocation_formulae ||= if HOMEBREW_PATCHELF_RB_WRITE
+      []
+    else
+      ["patchelf"]
+    end.freeze
   end
 
   def self.bottle_dependencies
